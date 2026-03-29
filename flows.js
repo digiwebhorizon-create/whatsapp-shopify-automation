@@ -332,8 +332,8 @@ function buildMessageText(msg, metadata) {
     recap = '\n\n🛍 Votre panier :\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
   }
 
-  // Lien vers la page panier du client
-  const cartLink = 'https://le-bourlingueur.com/cart';
+  // Lien de récupération checkout (fourni par Shopify via polling)
+  const cartLink = metadata.cart_url || 'https://le-bourlingueur.com';
 
   switch (msg.template) {
     case 'cart_reminder_1':
