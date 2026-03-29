@@ -118,6 +118,16 @@ app.post('/api/flows/:flowName/toggle', (req, res) => {
   res.json({ flowName, enabled });
 });
 
+// Force process queue (debug)
+app.post('/api/process-queue', async (req, res) => {
+  try {
+    await flows.processQueue();
+    res.json({ ok: true, stats: db.getStats() });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 // ─── CRON Jobs ───────────────────────────────────
 
 // Process message queue every minute (send pending messages within hours 9-21)
