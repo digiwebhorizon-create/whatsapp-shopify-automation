@@ -72,6 +72,7 @@ const abandonedCart = {
     const sharedMeta = {
       checkout_id: String(checkout.id),
       customer_name: customerName,
+      cart_url: cartUrl,
       items
     };
 
@@ -279,23 +280,32 @@ async function processQueue() {
         const checkout = db.getUnconvertedCheckout(msg.shop, null); // simplified
       }
 
-      // Send product images before text (one per article)
-      if (msg.flow === 'abandoned_cart' && metadata.items) {
-        for (const item of metadata.items) {
-          if (item.image_url) {
-            try {
-              await whatsapp.sendImage(msg.phone, item.image_url, `${item.title} — ${item.price}€`);
-              await sleep(500);
-            } catch (imgErr) {
-              console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
-            }
+      // Build message text
+      const text = buildMessageText(msg, metadata);
+
+      // Send images + text: images d'articles puis texte en caption sur la dernière
+      const images = (msg.flow === 'abandoned_cart' && metadata.items)
+        ? metadata.items.filter(i => i.image_url)
+        : [];
+
+      let result;
+      if (images.length > 0) {
+        // Send all images except last without caption
+        for (let i = 0; i < images.length - 1; i++) {
+          try {
+            await whatsapp.sendImage(msg.phone, images[i].image_url, `${images[i].title} — ${images[i].price}€`);
+            await sleep(500);
+          } catch (imgErr) {
+            console.log(`[QUEUE] Image send failed for ${images[i].title}: ${imgErr.message}`);
           }
         }
+        // Last image with full message text as caption
+        const lastImg = images[images.length - 1];
+        result = await whatsapp.sendImage(msg.phone, lastImg.image_url, text);
+      } else {
+        // No images, send text only
+        result = await whatsapp.sendText(msg.phone, text);
       }
-
-      // Send text message
-      const text = buildMessageText(msg, metadata);
-      const result = await whatsapp.sendText(msg.phone, text);
 
       if (result.success) {
         db.updateMessageStatus(msg.id, 'sent', result.messageId, null);
@@ -317,51 +327,50 @@ async function processQueue() {
 // Site public (pas le .myshopify.com)
 const SITE_URL = process.env.SITE_URL || 'https://le-bourlingueur.com';
 
-// Build message text — personnalisé avec le prénom, vouvoiement pro, CTA en haut
+// Build message text — personnalisé avec le prénom, vouvoiement pro
 function buildMessageText(msg, metadata) {
   const name = metadata.customer_name || '';
+  const cartUrl = metadata.cart_url || SITE_URL;
 
-  // Articles list (sans prix total, sans URL checkout)
-  let itemsList = '';
-  if (metadata.items && metadata.items.length > 0) {
-    itemsList = '\n\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
-  }
+  // Pour abandoned cart : lien checkout (retrouve le panier avec articles)
+  // Pour les autres flows : lien site propre
+  const link = msg.flow === 'abandoned_cart' ? cartUrl : SITE_URL;
 
   switch (msg.template) {
     case 'cart_reminder_1':
       return name
-        ? `Bonjour ${name} 👋\n\nVous n'avez pas finalisé votre commande !\n\n👉 ${SITE_URL}${itemsList}\n\nVos articles sont encore disponibles.\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
-        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !\n\n👉 ${SITE_URL}${itemsList}\n\nIls sont encore disponibles.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name} 👋\n\nVous n'avez pas finalisé votre commande !\n\nVos articles sont encore disponibles.\n\n👉 ${link}\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
+        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !\n\nIls sont encore disponibles.\n\n👉 ${link}\n\nLucie - Le Bourlingueur`;
 
     case 'cart_reminder_2':
       return name
-        ? `Bonjour ${name},\n\n👉 ${SITE_URL}\n\nVotre panier vous attend toujours 🛒${itemsList}\n\nNous vous l'avons réservé, mais pour une durée limitée.\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n👉 ${SITE_URL}\n\nVotre panier vous attend toujours 🛒${itemsList}\n\nIl est réservé pour une durée limitée.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nVotre panier vous attend toujours 🛒\n\nNous vous l'avons réservé, mais pour une durée limitée.\n\n👉 ${link}\n\nLucie - Le Bourlingueur`
+        : `Bonjour,\n\nVotre panier vous attend toujours 🛒\n\nIl est réservé pour une durée limitée.\n\n👉 ${link}\n\nLucie - Le Bourlingueur`;
 
     case 'cart_reminder_promo':
       return name
-        ? `Bonjour ${name},\n\n👉 ${SITE_URL}\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${itemsList}\n\nPour vous aider à finaliser votre commande. Code valable 48h.\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n👉 ${SITE_URL}\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${itemsList}\n\nCode valable 48h.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name},\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁\n\nPour vous aider à finaliser votre commande. Code valable 48h.\n\n👉 ${link}\n\nLucie - Le Bourlingueur`
+        : `Bonjour,\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁\n\nCode valable 48h.\n\n👉 ${link}\n\nLucie - Le Bourlingueur`;
 
     case 'post_purchase_upsell':
       return name
-        ? `Bonjour ${name} 😊\n\n👉 ${SITE_URL}/collections/all\n\nMerci pour votre commande ! Découvrez nos dernières nouveautés.\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
-        : `Bonjour 😊\n\n👉 ${SITE_URL}/collections/all\n\nMerci pour votre commande ! Découvrez nos nouveautés.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name} 😊\n\nMerci pour votre commande ! Découvrez nos dernières nouveautés.\n\n👉 ${SITE_URL}/collections/all\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
+        : `Bonjour 😊\n\nMerci pour votre commande ! Découvrez nos nouveautés.\n\n👉 ${SITE_URL}/collections/all\n\nLucie - Le Bourlingueur`;
 
     case 'winback_news':
       return name
-        ? `Bonjour ${name} 👋\n\n👉 ${SITE_URL}\n\nCela fait un moment ! Découvrez nos dernières nouveautés.\n\nAu plaisir de vous retrouver,\nLucie - Le Bourlingueur`
-        : `Bonjour 👋\n\n👉 ${SITE_URL}\n\nDécouvrez nos dernières nouveautés.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name} 👋\n\nCela fait un moment ! Découvrez nos dernières nouveautés.\n\n👉 ${SITE_URL}\n\nAu plaisir de vous retrouver,\nLucie - Le Bourlingueur`
+        : `Bonjour 👋\n\nDécouvrez nos dernières nouveautés.\n\n👉 ${SITE_URL}\n\nLucie - Le Bourlingueur`;
 
     case 'winback_offer_15':
       return name
-        ? `Bonjour ${name},\n\n👉 ${SITE_URL}\n\nVous nous manquez ! *-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n👉 ${SITE_URL}\n\n*-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nVous nous manquez ! *-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`
+        : `Bonjour,\n\n*-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`;
 
     case 'winback_offer_20':
       return name
-        ? `Bonjour ${name},\n\n👉 ${SITE_URL}\n\nOffre exclusive : *-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\nNotre meilleure offre, valable 7 jours.\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n👉 ${SITE_URL}\n\n*-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nOffre exclusive : *-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\nNotre meilleure offre, valable 7 jours.\n\n👉 ${SITE_URL}\n\nLucie - Le Bourlingueur`
+        : `Bonjour,\n\n*-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`;
 
     default:
       return `Bonjour,\n\n👉 ${SITE_URL}\n\nLucie - Le Bourlingueur`;
