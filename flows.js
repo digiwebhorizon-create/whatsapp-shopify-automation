@@ -2,10 +2,16 @@ const db = require('./db');
 const whatsapp = require('./whatsapp');
 const shopify = require('./shopify');
 
+// TEST MODE: set to true for quick testing (1min, 2min, 3min instead of 1h, 24h, 48h)
+const TEST_MODE = process.env.TEST_MODE === 'true';
+const DELAYS = TEST_MODE
+  ? { cart1: 1 * 60 * 1000, cart2: 2 * 60 * 1000, cart3: 3 * 60 * 1000, upsell: 5 * 60 * 1000 }  // 1, 2, 3, 5 minutes
+  : { cart1: 60 * 60 * 1000, cart2: 24 * 60 * 60 * 1000, cart3: 48 * 60 * 60 * 1000, upsell: 5 * 24 * 60 * 60 * 1000 }; // 1h, 24h, 48h, 5j
+
 // ═══════════════════════════════════════════════════
 // FLOW 1: ABANDONED CART
 // Checkout created → wait → check if converted → send messages
-// 3 messages: 1h, 24h, 48h
+// 3 messages: 1h, 24h, 48h (or 1min, 2min, 3min in TEST_MODE)
 // ═══════════════════════════════════════════════════
 const abandonedCart = {
   async onCheckoutCreated(shop, checkout) {
@@ -37,8 +43,8 @@ const abandonedCart = {
     const now = new Date();
 
     // Schedule 3 messages
-    // Message 1: 1 hour later
-    const msg1Time = new Date(now.getTime() + 60 * 60 * 1000);
+    // Message 1
+    const msg1Time = new Date(now.getTime() + DELAYS.cart1);
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 1,
       template: 'cart_reminder_1',
@@ -46,8 +52,8 @@ const abandonedCart = {
       metadata: { checkout_id: String(checkout.id), customer_name: checkout.billing_address?.first_name || '' }
     });
 
-    // Message 2: 24 hours later
-    const msg2Time = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Message 2
+    const msg2Time = new Date(now.getTime() + DELAYS.cart2);
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 2,
       template: 'cart_reminder_2',
@@ -55,8 +61,8 @@ const abandonedCart = {
       metadata: { checkout_id: String(checkout.id) }
     });
 
-    // Message 3: 48 hours later (with promo code)
-    const msg3Time = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    // Message 3 (with promo code)
+    const msg3Time = new Date(now.getTime() + DELAYS.cart3);
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 3,
       template: 'cart_reminder_promo',
@@ -110,8 +116,8 @@ const upsell = {
       return;
     }
 
-    // Schedule upsell message 5 days after fulfillment
-    const sendTime = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+    // Schedule upsell message
+    const sendTime = new Date(Date.now() + DELAYS.upsell);
 
     // Get product info for recommendations
     const productIds = (order.line_items || []).map(li => li.product_id).filter(Boolean);
