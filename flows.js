@@ -287,7 +287,7 @@ async function processQueue() {
 }
 
 // Site public (pas le .myshopify.com)
-const SITE_URL = process.env.SITE_URL || 'https://www.le-bourlingueur.com';
+const SITE_URL = process.env.SITE_URL || 'https://le-bourlingueur.com';
 
 // Build message text — personnalisé avec le prénom, vouvoiement pro
 function buildMessageText(msg, metadata) {
