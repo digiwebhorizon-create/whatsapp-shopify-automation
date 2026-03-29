@@ -332,12 +332,8 @@ function buildMessageText(msg, metadata) {
     recap = '\n\n🛍 Votre panier :\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
   }
 
-  // Lien cart propre : https://le-bourlingueur.com/cart/VARIANT:QTY,VARIANT:QTY
-  let cartLink = 'https://le-bourlingueur.com';
-  if (metadata.items && metadata.items.some(i => i.variant_id)) {
-    const cartParts = metadata.items.filter(i => i.variant_id).map(i => `${i.variant_id}:${i.quantity || 1}`).join(',');
-    cartLink = `https://le-bourlingueur.com/cart/${cartParts}`;
-  }
+  // Lien de récupération du panier (abandoned_checkout_url de Shopify)
+  const cartLink = metadata.cart_url || 'https://le-bourlingueur.com';
 
   switch (msg.template) {
     case 'cart_reminder_1':
