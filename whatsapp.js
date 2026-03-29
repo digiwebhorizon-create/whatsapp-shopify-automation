@@ -69,7 +69,9 @@ function cleanPhone(phone) {
 }
 
 // Check if current time is within sending hours (9h-21h Europe/Paris)
+// In TEST_MODE, always return true
 function isWithinSendingHours() {
+  if (process.env.TEST_MODE === 'true') return true;
   const now = new Date();
   const parisTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const hour = parisTime.getHours();
