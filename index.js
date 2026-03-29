@@ -128,6 +128,12 @@ app.get('/r/:id', (req, res) => {
   }
 });
 
+// Clear all data (debug)
+app.post('/api/clear', (req, res) => {
+  db.clearAll();
+  res.json({ ok: true });
+});
+
 // Force process queue (debug)
 app.post('/api/process-queue', async (req, res) => {
   try {

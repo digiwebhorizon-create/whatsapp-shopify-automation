@@ -250,6 +250,10 @@ function getRedirectUrl(id) {
 }
 
 // ─── Stats ───────────────────────────────────────
+function clearAll() {
+  db.exec("DELETE FROM messages; DELETE FROM checkouts; DELETE FROM redirects;");
+}
+
 function getSqliteNow() {
   return db.prepare("SELECT datetime('now') as now").get().now;
 }
@@ -277,6 +281,6 @@ module.exports = {
   isOptedIn, saveOptin, optOut,
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
-  saveRedirect, getRedirectUrl,
+  saveRedirect, getRedirectUrl, clearAll,
   getSqliteNow, getStats
 };
