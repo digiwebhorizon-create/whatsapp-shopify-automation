@@ -289,7 +289,7 @@ async function processQueue() {
 // Site public (pas le .myshopify.com)
 const SITE_URL = process.env.SITE_URL || 'https://www.le-bourlingueur.com';
 
-// Build message text — ton WhatsApp naturel, personnalisé avec le prénom
+// Build message text — personnalisé avec le prénom, vouvoiement pro
 function buildMessageText(msg, metadata) {
   const name = metadata.customer_name || '';
   const cartUrl = metadata.cart_url || SITE_URL;
@@ -299,48 +299,48 @@ function buildMessageText(msg, metadata) {
   if (metadata.items && metadata.items.length > 0) {
     itemsList = '\n\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
     if (metadata.total_price) {
-      itemsList += `\n\n💰 Total : ${metadata.total_price}€`;
+      itemsList += `\n\nTotal : ${metadata.total_price}€`;
     }
   }
 
   switch (msg.template) {
     case 'cart_reminder_1':
       return name
-        ? `Hey ${name} ! 👋\n\nOn a vu que tu n'as pas finalisé ta commande.${itemsList}\n\nTes articles sont encore dispo, mais ça part vite 😉\n\n👉 ${cartUrl}\n\nÀ tout de suite !\nL'équipe Le Bourlingueur`
-        : `Hey ! 👋\n\nTu as oublié quelque chose dans ton panier !${itemsList}\n\nTes articles sont encore dispo 😉\n\n👉 ${cartUrl}\n\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name} 👋\n\nNous avons remarqué que vous n'avez pas finalisé votre commande.${itemsList}\n\nVos articles sont encore disponibles !\n\n👉 ${cartUrl}\n\nÀ très bientôt,\nL'équipe Le Bourlingueur`
+        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !${itemsList}\n\nIls sont encore disponibles :\n\n👉 ${cartUrl}\n\nL'équipe Le Bourlingueur`;
 
     case 'cart_reminder_2':
       return name
-        ? `${name}, ton panier t'attend toujours ! 🛒${itemsList}\n\nOn te l'a réservé mais pas pour longtemps…\n\n👉 ${cartUrl}\n\nL'équipe Le Bourlingueur`
-        : `Ton panier t'attend toujours ! 🛒${itemsList}\n\nOn te l'a réservé mais pas pour longtemps…\n\n👉 ${cartUrl}\n\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nVotre panier vous attend toujours 🛒${itemsList}\n\nNous vous l'avons réservé, mais pour une durée limitée.\n\n👉 ${cartUrl}\n\nL'équipe Le Bourlingueur`
+        : `Bonjour,\n\nVotre panier vous attend toujours 🛒${itemsList}\n\nIl est réservé pour une durée limitée.\n\n👉 ${cartUrl}\n\nL'équipe Le Bourlingueur`;
 
     case 'cart_reminder_promo':
       return name
-        ? `${name}, allez on te fait un petit cadeau 🎁\n\n*-10%* sur ta commande avec le code *${metadata.promo_code || 'PANIER10'}*${itemsList}\n\n👉 ${cartUrl}\n\nC'est valable 48h, après c'est trop tard !\n\nL'équipe Le Bourlingueur`
-        : `Allez, on te fait un petit cadeau 🎁\n\n*-10%* sur ta commande avec le code *${metadata.promo_code || 'PANIER10'}*${itemsList}\n\n👉 ${cartUrl}\n\nC'est valable 48h !\n\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nPour vous aider à finaliser votre commande, nous vous offrons *-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${itemsList}\n\n👉 ${cartUrl}\n\nCode valable 48h.\n\nL'équipe Le Bourlingueur`
+        : `Bonjour,\n\nProfitez de *-10%* sur votre panier avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${itemsList}\n\n👉 ${cartUrl}\n\nCode valable 48h.\n\nL'équipe Le Bourlingueur`;
 
     case 'post_purchase_upsell':
       return name
-        ? `${name}, merci pour ta commande ! 😊\n\nOn espère que tout te plaît. En attendant, jette un œil à nos dernières pépites :\n\n👉 ${SITE_URL}/collections/all\n\nÀ très vite !\nL'équipe Le Bourlingueur`
-        : `Merci pour ta commande ! 😊\n\nJette un œil à nos dernières nouveautés :\n\n👉 ${SITE_URL}/collections/all\n\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name} 😊\n\nMerci pour votre commande ! Nous espérons qu'elle vous plaira.\n\nEn attendant, découvrez nos dernières nouveautés :\n\n👉 ${SITE_URL}/collections/all\n\nÀ très bientôt,\nL'équipe Le Bourlingueur`
+        : `Bonjour 😊\n\nMerci pour votre commande !\n\nDécouvrez nos dernières nouveautés :\n\n👉 ${SITE_URL}/collections/all\n\nL'équipe Le Bourlingueur`;
 
     case 'winback_news':
       return name
-        ? `${name}, ça fait un moment ! 👋\n\nOn a plein de nouvelles choses à te montrer 😍\n\n👉 ${SITE_URL}\n\nViens voir, on est sûr que tu vas craquer !\nL'équipe Le Bourlingueur`
-        : `Ça fait un moment ! 👋\n\nViens découvrir nos nouveautés :\n\n👉 ${SITE_URL}\n\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name} 👋\n\nCela fait un moment que nous ne vous avons pas vu !\n\nDécouvrez nos dernières nouveautés :\n\n👉 ${SITE_URL}\n\nAu plaisir de vous retrouver,\nL'équipe Le Bourlingueur`
+        : `Bonjour 👋\n\nDécouvrez nos dernières nouveautés :\n\n👉 ${SITE_URL}\n\nL'équipe Le Bourlingueur`;
 
     case 'winback_offer_15':
       return name
-        ? `${name}, tu nous manques ! 😢\n\nPour te faire revenir, on t'offre *-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 ${SITE_URL}\n\nValable 7 jours, profites-en !\nL'équipe Le Bourlingueur`
-        : `Tu nous manques ! 😢\n\n*-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 ${SITE_URL}\n\nValable 7 jours !\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nVous nous manquez ! Pour votre retour, profitez de *-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nL'équipe Le Bourlingueur`
+        : `Bonjour,\n\nProfitez de *-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nL'équipe Le Bourlingueur`;
 
     case 'winback_offer_20':
       return name
-        ? `${name}, on met le paquet pour toi 🎁\n\n*-20%* sur TOUT le site avec le code *${metadata.promo_code || 'RETOUR20'}*\n\nC'est notre meilleure offre, et c'est juste pour toi 😉\n\n👉 ${SITE_URL}\n\nValable 7 jours !\nL'équipe Le Bourlingueur`
-        : `On met le paquet 🎁\n\n*-20%* sur TOUT le site avec le code *${metadata.promo_code || 'RETOUR20'}*\n\n👉 ${SITE_URL}\n\nValable 7 jours !\nL'équipe Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nOffre exclusive pour vous 🎁\n\n*-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}*\n\nC'est notre meilleure offre !\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nL'équipe Le Bourlingueur`
+        : `Bonjour,\n\n*-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\n👉 ${SITE_URL}\n\nCode valable 7 jours.\n\nL'équipe Le Bourlingueur`;
 
     default:
-      return `Un message de Le Bourlingueur 👋\n\n👉 ${SITE_URL}`;
+      return `Bonjour,\n\nUn message de Le Bourlingueur.\n\n👉 ${SITE_URL}`;
   }
 }
 
