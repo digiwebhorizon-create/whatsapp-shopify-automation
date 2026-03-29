@@ -100,8 +100,15 @@ async function getAllCustomers(shop, sinceId = null) {
   return data.customers || [];
 }
 
+// Get abandoned checkouts (last 60 minutes by default)
+async function getAbandonedCheckouts(shop, sinceMinutes = 60) {
+  const since = new Date(Date.now() - sinceMinutes * 60 * 1000).toISOString();
+  const data = await apiCall(shop, `checkouts.json?status=open&created_at_min=${since}&limit=50`);
+  return data.checkouts || [];
+}
+
 function getServerUrl() {
   return process.env.SERVER_URL || 'https://whatsapp-shopify-automation-production.up.railway.app';
 }
 
-module.exports = { apiCall, getCustomerOrders, getProductRecommendations, createDiscountCode, ensureWebhooks, getAllCustomers };
+module.exports = { apiCall, getCustomerOrders, getProductRecommendations, createDiscountCode, ensureWebhooks, getAllCustomers, getAbandonedCheckouts };

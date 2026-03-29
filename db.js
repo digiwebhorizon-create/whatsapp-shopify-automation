@@ -112,6 +112,10 @@ function saveCheckout(checkout) {
   );
 }
 
+function getCheckoutById(id) {
+  return db.prepare('SELECT * FROM checkouts WHERE id = ?').get(String(id));
+}
+
 function markCheckoutConverted(shop, email) {
   db.prepare(`
     UPDATE checkouts SET converted = 1, converted_at = datetime('now')
@@ -252,7 +256,7 @@ function getStats() {
 
 module.exports = {
   init, saveShop, getShops, getShopToken,
-  saveCheckout, markCheckoutConverted, getUnconvertedCheckout,
+  saveCheckout, getCheckoutById, markCheckoutConverted, getUnconvertedCheckout,
   queueMessage, getPendingMessages, updateMessageStatus, cancelMessages, hasActiveFlow, getRecentMessages,
   isOptedIn, saveOptin, optOut,
   getFlowSettings, isFlowEnabled, setFlowEnabled,

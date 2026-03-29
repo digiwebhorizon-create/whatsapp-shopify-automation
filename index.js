@@ -146,6 +146,15 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
+// Poll abandoned checkouts every 5 minutes (more reliable than webhook)
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    await flows.pollAbandonedCheckouts();
+  } catch (err) {
+    console.error('[CRON] pollAbandonedCheckouts error:', err.message);
+  }
+});
+
 // Winback scan daily at 10:00
 cron.schedule('0 10 * * *', async () => {
   try {
