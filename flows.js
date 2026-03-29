@@ -36,11 +36,23 @@ const abandonedCart = {
       title: li.title || li.name || 'Article',
       quantity: li.quantity || 1,
       price: li.price || '0.00',
+      product_id: li.product_id || null,
       image_url: li.image_url || li.variant?.image?.src || ''
     }));
 
-    // Get first product image for WhatsApp image message
-    const firstImage = items.find(i => i.image_url)?.image_url || '';
+    // Fetch product images from Shopify API if missing
+    for (const item of items) {
+      if (!item.image_url && item.product_id) {
+        try {
+          const product = await shopify.apiCall(shop, `products/${item.product_id}.json?fields=image`);
+          if (product?.product?.image?.src) {
+            item.image_url = product.product.image.src;
+          }
+        } catch (err) {
+          console.log(`[CART] Could not fetch image for product ${item.product_id}: ${err.message}`);
+        }
+      }
+    }
 
     // Save checkout
     db.saveCheckout({
@@ -60,8 +72,7 @@ const abandonedCart = {
     const sharedMeta = {
       checkout_id: String(checkout.id),
       customer_name: customerName,
-      items,
-      image_url: firstImage
+      items
     };
 
     // Schedule 3 messages
@@ -268,13 +279,17 @@ async function processQueue() {
         const checkout = db.getUnconvertedCheckout(msg.shop, null); // simplified
       }
 
-      // Send product image first if available (abandoned cart flow)
-      if (metadata.image_url && msg.flow === 'abandoned_cart') {
-        try {
-          await whatsapp.sendImage(msg.phone, metadata.image_url);
-          await sleep(500);
-        } catch (imgErr) {
-          console.log(`[QUEUE] Image send failed (continuing with text): ${imgErr.message}`);
+      // Send product images before text (one per article)
+      if (msg.flow === 'abandoned_cart' && metadata.items) {
+        for (const item of metadata.items) {
+          if (item.image_url) {
+            try {
+              await whatsapp.sendImage(msg.phone, item.image_url, `${item.title} — ${item.price}€`);
+              await sleep(500);
+            } catch (imgErr) {
+              console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
+            }
+          }
         }
       }
 
