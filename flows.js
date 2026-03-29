@@ -283,29 +283,23 @@ async function processQueue() {
       // Build message text
       const text = buildMessageText(msg, metadata);
 
-      // Send images + text: images d'articles puis texte en caption sur la dernière
+      // Send images grouped then text message below
       const images = (msg.flow === 'abandoned_cart' && metadata.items)
         ? metadata.items.filter(i => i.image_url)
         : [];
 
-      let result;
-      if (images.length > 0) {
-        // Send all images except last without caption
-        for (let i = 0; i < images.length - 1; i++) {
-          try {
-            await whatsapp.sendImage(msg.phone, images[i].image_url, `${images[i].title} — ${images[i].price}€`);
-            await sleep(500);
-          } catch (imgErr) {
-            console.log(`[QUEUE] Image send failed for ${images[i].title}: ${imgErr.message}`);
-          }
+      // Send all images rapidly (WhatsApp groups them visually)
+      for (const item of images) {
+        try {
+          await whatsapp.sendImage(msg.phone, item.image_url);
+          await sleep(300);
+        } catch (imgErr) {
+          console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
         }
-        // Last image with full message text as caption
-        const lastImg = images[images.length - 1];
-        result = await whatsapp.sendImage(msg.phone, lastImg.image_url, text);
-      } else {
-        // No images, send text only
-        result = await whatsapp.sendText(msg.phone, text);
       }
+
+      // Then send text message below
+      const result = await whatsapp.sendText(msg.phone, text);
 
       if (result.success) {
         db.updateMessageStatus(msg.id, 'sent', result.messageId, null);
