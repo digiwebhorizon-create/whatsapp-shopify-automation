@@ -135,12 +135,14 @@ function queueMessage(msg) {
 }
 
 function getPendingMessages() {
+  // Replace T and Z in scheduled_at to match SQLite datetime format
+  const now = new Date().toISOString();
   return db.prepare(`
     SELECT * FROM messages
-    WHERE status = 'queued' AND scheduled_at <= datetime('now')
+    WHERE status = 'queued' AND replace(replace(scheduled_at, 'T', ' '), 'Z', '') <= ?
     ORDER BY scheduled_at ASC
     LIMIT 20
-  `).all();
+  `).all(now.replace('T', ' ').replace('Z', '').split('.')[0]);
 }
 
 function updateMessageStatus(id, status, waMessageId, error) {
