@@ -1,0 +1,12 @@
+{
+  "name": "whatsapp-shopify-automation",
+  "version": "1.0.0",
+  "description": "WhatsApp Marketing Automation for Shopify - Le Bourlingueur",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
