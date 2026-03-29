@@ -246,7 +246,7 @@ async function pollAbandonedCheckouts() {
   const shops = db.getShops();
   for (const shop of shops) {
     try {
-      const checkouts = await shopify.getAbandonedCheckouts(shop.domain, 15); // last 15 min
+      const checkouts = await shopify.getAbandonedCheckouts(shop.domain, 60); // last 60 min
       for (const checkout of checkouts) {
         // Skip if already processed
         if (db.getCheckoutById(checkout.id)) continue;
