@@ -6,7 +6,7 @@ const shopify = require('./shopify');
 const TEST_MODE = process.env.TEST_MODE === 'true';
 const DELAYS = TEST_MODE
   ? { cart1: 1 * 60 * 1000, cart2: 2 * 60 * 1000, cart3: 3 * 60 * 1000, upsell: 5 * 60 * 1000 }  // 1, 2, 3, 5 minutes
-  : { cart1: 60 * 60 * 1000, cart2: 24 * 60 * 60 * 1000, cart3: 48 * 60 * 60 * 1000, upsell: 5 * 24 * 60 * 60 * 1000 }; // 1h, 24h, 48h, 5j
+  : { cart1: 30 * 60 * 1000, cart2: 24 * 60 * 60 * 1000, cart3: 48 * 60 * 60 * 1000, upsell: 5 * 24 * 60 * 60 * 1000 }; // 30min, 24h, 48h, 5j
 
 // ═══════════════════════════════════════════════════
 // FLOW 1: ABANDONED CART
