@@ -121,10 +121,17 @@ app.post('/api/flows/:flowName/toggle', (req, res) => {
 // Force process queue (debug)
 app.post('/api/process-queue', async (req, res) => {
   try {
+    const pending = db.getPendingMessages();
+    console.log(`[DEBUG] Pending messages: ${pending.length}`);
+    console.log(`[DEBUG] isWithinSendingHours: ${require('./whatsapp').isWithinSendingHours()}`);
+    console.log(`[DEBUG] SQLite now: ${db.getSqliteNow()}`);
+    if (pending.length > 0) {
+      console.log(`[DEBUG] First msg scheduled_at: ${pending[0].scheduled_at}`);
+    }
     await flows.processQueue();
-    res.json({ ok: true, stats: db.getStats() });
+    res.json({ ok: true, stats: db.getStats(), debug: { pending: pending.length, sqliteNow: db.getSqliteNow(), sendingHours: require('./whatsapp').isWithinSendingHours() } });
   } catch (err) {
-    res.json({ ok: false, error: err.message });
+    res.json({ ok: false, error: err.message, stack: err.stack });
   }
 });
 

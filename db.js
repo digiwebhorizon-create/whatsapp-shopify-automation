@@ -228,6 +228,10 @@ function updateWinbackStage(customerId, stage) {
 }
 
 // ─── Stats ───────────────────────────────────────
+function getSqliteNow() {
+  return db.prepare("SELECT datetime('now') as now").get().now;
+}
+
 function getStats() {
   const sent = db.prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'sent'").get();
   const queued = db.prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'queued'").get();
@@ -251,5 +255,5 @@ module.exports = {
   isOptedIn, saveOptin, optOut,
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
-  getStats
+  getSqliteNow, getStats
 };
