@@ -155,8 +155,17 @@ cron.schedule('0 8 * * *', async () => {
 // ─── Start ───────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`[SERVER] Running on port ${PORT}`);
+  console.log(`[SERVER] TEST_MODE: ${process.env.TEST_MODE === 'true'}`);
   db.init();
   console.log('[DB] Initialized');
+
+  // Auto-register shop from environment variables on startup
+  const shopDomain = process.env.SHOPIFY_STORE_DOMAIN || 'lebourlingueur.myshopify.com';
+  const shopToken = process.env.SHOPIFY_STORE_TOKEN || '';
+  if (shopToken) {
+    db.saveShop(shopDomain, shopToken);
+    console.log(`[STARTUP] Shop registered: ${shopDomain}`);
+  }
 
   // Register webhooks for all shops on startup
   const shops = db.getShops();
