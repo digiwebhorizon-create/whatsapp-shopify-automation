@@ -65,7 +65,12 @@ async function sendRequest(body) {
 }
 
 function cleanPhone(phone) {
-  return phone.replace(/[^0-9]/g, '');
+  let cleaned = phone.replace(/[^0-9]/g, '');
+  // Convert French local format (06...) to international (336...)
+  if (cleaned.startsWith('0') && cleaned.length === 10) {
+    cleaned = '33' + cleaned.substring(1);
+  }
+  return cleaned;
 }
 
 // Check if current time is within sending hours (9h-21h Europe/Paris)
