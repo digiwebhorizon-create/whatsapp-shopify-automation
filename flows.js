@@ -37,6 +37,7 @@ const abandonedCart = {
       quantity: li.quantity || 1,
       price: li.price || '0.00',
       product_id: li.product_id || null,
+      variant_id: li.variant_id || null,
       image_url: li.image_url || li.variant?.image?.src || ''
     }));
 
@@ -331,21 +332,28 @@ function buildMessageText(msg, metadata) {
     recap = '\n\n🛍 Votre panier :\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
   }
 
+  // Lien cart propre : le-bourlingueur.com/cart/VARIANT:QTY,VARIANT:QTY
+  let cartLink = 'le-bourlingueur.com';
+  if (metadata.items && metadata.items.some(i => i.variant_id)) {
+    const cartParts = metadata.items.filter(i => i.variant_id).map(i => `${i.variant_id}:${i.quantity || 1}`).join(',');
+    cartLink = `le-bourlingueur.com/cart/${cartParts}`;
+  }
+
   switch (msg.template) {
     case 'cart_reminder_1':
       return name
-        ? `Bonjour ${name} 👋\n\nVous n'avez pas finalisé votre commande !${recap}\n\nVos articles sont encore disponibles.\n\n👉 le-bourlingueur.com\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
-        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !${recap}\n\nIls sont encore disponibles.\n\n👉 le-bourlingueur.com\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name} 👋\n\nVous n'avez pas finalisé votre commande !${recap}\n\nVos articles sont encore disponibles.\n\n👉 ${cartLink}\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
+        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !${recap}\n\nIls sont encore disponibles.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`;
 
     case 'cart_reminder_2':
       return name
-        ? `Bonjour ${name},\n\nVotre panier vous attend toujours 🛒${recap}\n\nNous vous l'avons réservé, mais pour une durée limitée.\n\n👉 le-bourlingueur.com\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\nVotre panier vous attend toujours 🛒${recap}\n\nIl est réservé pour une durée limitée.\n\n👉 le-bourlingueur.com\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name},\n\nVotre panier vous attend toujours 🛒${recap}\n\nNous vous l'avons réservé, mais pour une durée limitée.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`
+        : `Bonjour,\n\nVotre panier vous attend toujours 🛒${recap}\n\nIl est réservé pour une durée limitée.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`;
 
     case 'cart_reminder_promo':
       return name
-        ? `Bonjour ${name},\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${recap}\n\nPour vous aider à finaliser votre commande. Code valable 48h.\n\n👉 le-bourlingueur.com\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${recap}\n\nCode valable 48h.\n\n👉 le-bourlingueur.com\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name},\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${recap}\n\nPour vous aider à finaliser votre commande. Code valable 48h.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`
+        : `Bonjour,\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${recap}\n\nCode valable 48h.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`;
 
     case 'post_purchase_upsell':
       return name
