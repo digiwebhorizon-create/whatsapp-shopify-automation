@@ -335,10 +335,10 @@ function buildMessageText(msg, metadata) {
   // Lien court qui redirige vers le checkout Shopify
   let cartLink = 'https://le-bourlingueur.com';
   if (metadata.cart_url) {
-    const shortId = metadata.checkout_id || Math.random().toString(36).slice(2, 8);
+    const shortId = Math.random().toString(36).slice(2, 8);
     db.saveRedirect(shortId, metadata.cart_url);
-    const serverUrl = process.env.SERVER_URL || 'https://whatsapp-shopify-automation-production.up.railway.app';
-    cartLink = `${serverUrl}/r/${shortId}`;
+    const baseUrl = process.env.SHORT_URL || 'https://panier.le-bourlingueur.com';
+    cartLink = `${baseUrl}/r/${shortId}`;
   }
 
   switch (msg.template) {
