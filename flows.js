@@ -326,9 +326,7 @@ function buildMessageText(msg, metadata) {
   const name = metadata.customer_name || '';
   const cartUrl = metadata.cart_url || SITE_URL;
 
-  // Pour abandoned cart : lien checkout (retrouve le panier avec articles)
-  // Pour les autres flows : lien site propre
-  const link = msg.flow === 'abandoned_cart' ? cartUrl : SITE_URL;
+  const link = SITE_URL;
 
   switch (msg.template) {
     case 'cart_reminder_1':
