@@ -315,8 +315,8 @@ function buildMessageText(msg, metadata) {
   switch (msg.template) {
     case 'cart_reminder_1':
       return name
-        ? `Bonjour ${name} 👋\n\n👉 ${SITE_URL}\n\nVous n'avez pas finalisé votre commande !${itemsList}\n\nVos articles sont encore disponibles.\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
-        : `Bonjour 👋\n\n👉 ${SITE_URL}\n\nVous avez laissé des articles dans votre panier !${itemsList}\n\nIls sont encore disponibles.\n\nLucie - Le Bourlingueur`;
+        ? `Bonjour ${name} 👋\n\nVous n'avez pas finalisé votre commande !\n\n👉 ${SITE_URL}${itemsList}\n\nVos articles sont encore disponibles.\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
+        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !\n\n👉 ${SITE_URL}${itemsList}\n\nIls sont encore disponibles.\n\nLucie - Le Bourlingueur`;
 
     case 'cart_reminder_2':
       return name
