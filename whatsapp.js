@@ -23,6 +23,17 @@ async function sendTemplate(to, templateName, language, components) {
   return await sendRequest(body);
 }
 
+async function sendImage(to, imageUrl, caption) {
+  const body = {
+    messaging_product: 'whatsapp',
+    to: cleanPhone(to),
+    type: 'image',
+    image: { link: imageUrl }
+  };
+  if (caption) body.image.caption = caption;
+  return await sendRequest(body);
+}
+
 async function sendText(to, text) {
   return await sendRequest({
     messaging_product: 'whatsapp',
@@ -83,4 +94,4 @@ function isWithinSendingHours() {
   return hour >= 9 && hour < 21;
 }
 
-module.exports = { sendTemplate, sendText, isWithinSendingHours };
+module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours };
