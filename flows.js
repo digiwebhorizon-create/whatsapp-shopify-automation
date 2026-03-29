@@ -332,8 +332,14 @@ function buildMessageText(msg, metadata) {
     recap = '\n\n🛍 Votre panier :\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
   }
 
-  // Lien de récupération checkout (fourni par Shopify via polling)
-  const cartLink = metadata.cart_url || 'https://le-bourlingueur.com';
+  // Lien court qui redirige vers le checkout Shopify
+  let cartLink = 'https://le-bourlingueur.com';
+  if (metadata.cart_url) {
+    const shortId = metadata.checkout_id || Math.random().toString(36).slice(2, 8);
+    db.saveRedirect(shortId, metadata.cart_url);
+    const serverUrl = process.env.SERVER_URL || 'https://whatsapp-shopify-automation-production.up.railway.app';
+    cartLink = `${serverUrl}/r/${shortId}`;
+  }
 
   switch (msg.template) {
     case 'cart_reminder_1':

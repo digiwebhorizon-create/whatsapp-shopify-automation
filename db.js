@@ -78,6 +78,12 @@ function init() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS redirects (
+      id TEXT PRIMARY KEY,
+      url TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('abandoned_cart', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('upsell', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('winback', 1);
@@ -233,6 +239,16 @@ function updateWinbackStage(customerId, stage) {
   db.prepare('UPDATE customers SET winback_stage = ? WHERE id = ?').run(stage, customerId);
 }
 
+// ─── Redirects (short URLs) ─────────────────────
+function saveRedirect(id, url) {
+  db.prepare('INSERT OR REPLACE INTO redirects (id, url) VALUES (?, ?)').run(id, url);
+}
+
+function getRedirectUrl(id) {
+  const row = db.prepare('SELECT url FROM redirects WHERE id = ?').get(id);
+  return row?.url;
+}
+
 // ─── Stats ───────────────────────────────────────
 function getSqliteNow() {
   return db.prepare("SELECT datetime('now') as now").get().now;
@@ -261,5 +277,6 @@ module.exports = {
   isOptedIn, saveOptin, optOut,
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
+  saveRedirect, getRedirectUrl,
   getSqliteNow, getStats
 };

@@ -118,6 +118,16 @@ app.post('/api/flows/:flowName/toggle', (req, res) => {
   res.json({ flowName, enabled });
 });
 
+// ─── Short URL redirect ─────────────────────────
+app.get('/r/:id', (req, res) => {
+  const url = db.getRedirectUrl(req.params.id);
+  if (url) {
+    res.redirect(url);
+  } else {
+    res.redirect('https://le-bourlingueur.com');
+  }
+});
+
 // Force process queue (debug)
 app.post('/api/process-queue', async (req, res) => {
   try {
