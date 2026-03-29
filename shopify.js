@@ -100,10 +100,10 @@ async function getAllCustomers(shop, sinceId = null) {
   return data.customers || [];
 }
 
-// Get abandoned checkouts (last 60 minutes by default)
+// Get abandoned checkouts (last N minutes, sorted by most recent)
 async function getAbandonedCheckouts(shop, sinceMinutes = 60) {
   const since = new Date(Date.now() - sinceMinutes * 60 * 1000).toISOString();
-  const data = await apiCall(shop, `checkouts.json?status=open&created_at_min=${since}&limit=50`);
+  const data = await apiCall(shop, `checkouts.json?status=open&updated_at_min=${since}&limit=50`);
   return data.checkouts || [];
 }
 
