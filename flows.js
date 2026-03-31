@@ -77,12 +77,12 @@ const abandonedCart = {
       items
     };
 
-    // Schedule 3 messages
+    // Schedule 3 messages (using Meta templates with button)
     // Message 1
     const msg1Time = new Date(now.getTime() + DELAYS.cart1);
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 1,
-      template: 'cart_reminder_1',
+      template: 'panier_rappel_1',
       scheduled_at: msg1Time.toISOString(),
       metadata: sharedMeta
     });
@@ -91,7 +91,7 @@ const abandonedCart = {
     const msg2Time = new Date(now.getTime() + DELAYS.cart2);
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 2,
-      template: 'cart_reminder_2',
+      template: 'panier_rappel_2',
       scheduled_at: msg2Time.toISOString(),
       metadata: sharedMeta
     });
@@ -100,7 +100,7 @@ const abandonedCart = {
     const msg3Time = new Date(now.getTime() + DELAYS.cart3);
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 3,
-      template: 'cart_reminder_promo',
+      template: 'panier_rappel_promo',
       scheduled_at: msg3Time.toISOString(),
       metadata: { ...sharedMeta, promo_code: 'PANIER10' }
     });
@@ -281,26 +281,54 @@ async function processQueue() {
         const checkout = db.getUnconvertedCheckout(msg.shop, null); // simplified
       }
 
-      // Build message text
-      const text = buildMessageText(msg, metadata);
+      let result;
 
-      // Send images grouped then text message below
-      const images = (msg.flow === 'abandoned_cart' && metadata.items)
-        ? metadata.items.filter(i => i.image_url)
-        : [];
-
-      // Send all images rapidly (WhatsApp groups them visually)
-      for (const item of images) {
-        try {
-          await whatsapp.sendImage(msg.phone, item.image_url);
-          await sleep(300);
-        } catch (imgErr) {
-          console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
+      // Abandoned cart templates → use Meta templates with button
+      const cartTemplates = ['panier_rappel_1', 'panier_rappel_2', 'panier_rappel_promo'];
+      if (cartTemplates.includes(msg.template)) {
+        // Send images grouped first
+        const images = (metadata.items || []).filter(i => i.image_url);
+        for (const item of images) {
+          try {
+            await whatsapp.sendImage(msg.phone, item.image_url);
+            await sleep(300);
+          } catch (imgErr) {
+            console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
+          }
         }
-      }
 
-      // Then send text message below
-      const result = await whatsapp.sendText(msg.phone, text);
+        // Generate short URL for checkout
+        let shortId = 'shop';
+        if (metadata.cart_url) {
+          shortId = Math.random().toString(36).slice(2, 8);
+          db.saveRedirect(shortId, metadata.cart_url);
+        }
+
+        // Send Meta template with button
+        const name = metadata.customer_name || 'cher client';
+        result = await whatsapp.sendTemplate(msg.phone, msg.template, 'fr', [
+          {
+            type: 'body',
+            parameters: [{ type: 'text', text: name }]
+          },
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [{ type: 'text', text: shortId }]
+          }
+        ]);
+      }
+      // Other templates → use Meta templates (text only, no button)
+      else {
+        const name = metadata.customer_name || 'cher client';
+        result = await whatsapp.sendTemplate(msg.phone, msg.template, 'fr', [
+          {
+            type: 'body',
+            parameters: [{ type: 'text', text: name }]
+          }
+        ]);
+      }
 
       if (result.success) {
         db.updateMessageStatus(msg.id, 'sent', result.messageId, null);
