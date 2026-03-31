@@ -262,16 +262,79 @@ function getStats() {
   const sent = db.prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'sent'").get();
   const queued = db.prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'queued'").get();
   const failed = db.prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'failed'").get();
+  const cancelled = db.prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'cancelled'").get();
   const checkouts = db.prepare("SELECT COUNT(*) as count FROM checkouts WHERE converted = 0").get();
   const recovered = db.prepare("SELECT COUNT(*) as count FROM checkouts WHERE converted = 1").get();
+  const totalCheckouts = db.prepare("SELECT COUNT(*) as count FROM checkouts").get();
+  const totalCustomers = db.prepare("SELECT COUNT(*) as count FROM customers").get();
+  const totalOptins = db.prepare("SELECT COUNT(*) as count FROM optins WHERE opted_in = 1").get();
+
+  // Revenue recovered (sum of converted checkout totals)
+  const revenue = db.prepare("SELECT COALESCE(SUM(CAST(total_price AS REAL)), 0) as total FROM checkouts WHERE converted = 1").get();
 
   return {
     messages_sent: sent.count,
     messages_queued: queued.count,
     messages_failed: failed.count,
+    messages_cancelled: cancelled.count,
     abandoned_checkouts: checkouts.count,
-    recovered_checkouts: recovered.count
+    recovered_checkouts: recovered.count,
+    total_checkouts: totalCheckouts.count,
+    recovery_rate: totalCheckouts.count > 0 ? Math.round(recovered.count / totalCheckouts.count * 100) : 0,
+    revenue_recovered: revenue.total,
+    total_customers: totalCustomers.count,
+    total_optins: totalOptins.count
   };
+}
+
+// ─── Dashboard detailed stats ───────────────────
+function getMessagesByFlow() {
+  return db.prepare(`
+    SELECT flow, status, COUNT(*) as count
+    FROM messages GROUP BY flow, status ORDER BY flow, status
+  `).all();
+}
+
+function getMessagesByDay(days = 30) {
+  return db.prepare(`
+    SELECT DATE(created_at) as day, flow, status, COUNT(*) as count
+    FROM messages
+    WHERE created_at >= datetime('now', '-' || ? || ' days')
+    GROUP BY day, flow, status ORDER BY day DESC
+  `).all(days);
+}
+
+function getCheckoutsDetailed(limit = 50) {
+  return db.prepare(`
+    SELECT id, shop, email, phone, total_price, customer_name, converted, converted_at, created_at,
+           line_items
+    FROM checkouts ORDER BY created_at DESC LIMIT ?
+  `).all(limit);
+}
+
+function getMessagesByTemplate() {
+  return db.prepare(`
+    SELECT template, status, COUNT(*) as count
+    FROM messages GROUP BY template, status ORDER BY template
+  `).all();
+}
+
+function getDailyRevenue(days = 30) {
+  return db.prepare(`
+    SELECT DATE(converted_at) as day, COUNT(*) as conversions,
+           COALESCE(SUM(CAST(total_price AS REAL)), 0) as revenue
+    FROM checkouts
+    WHERE converted = 1 AND converted_at >= datetime('now', '-' || ? || ' days')
+    GROUP BY day ORDER BY day DESC
+  `).all(days);
+}
+
+function getHourlyDistribution() {
+  return db.prepare(`
+    SELECT CAST(strftime('%H', sent_at) AS INTEGER) as hour, COUNT(*) as count
+    FROM messages WHERE status = 'sent' AND sent_at IS NOT NULL
+    GROUP BY hour ORDER BY hour
+  `).all();
 }
 
 module.exports = {
@@ -282,5 +345,6 @@ module.exports = {
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
   saveRedirect, getRedirectUrl, clearAll,
-  getSqliteNow, getStats
+  getSqliteNow, getStats,
+  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getDailyRevenue, getHourlyDistribution
 };
