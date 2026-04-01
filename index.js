@@ -100,7 +100,7 @@ app.post('/webhooks/orders-fulfilled', async (req, res) => {
 
 // ─── Dashboard API ───────────────────────────────
 app.get('/api/stats', (req, res) => {
-  res.json(db.getStats());
+  res.json({ ...db.getStats(), test_mode: process.env.TEST_MODE === 'true' });
 });
 
 app.get('/api/messages', (req, res) => {

@@ -369,6 +369,7 @@ async function loadAll(){
   try{
     document.getElementById('lastRefresh').textContent=new Date().toLocaleTimeString('fr-FR');
     const s=await api('/api/stats');
+    isTestMode=!!s.test_mode;
     const rev=(s.revenue_recovered||0);
     document.getElementById('kpiGrid').innerHTML=[
       kpi('Messages envoyes',s.messages_sent||0,'','teal'),
@@ -418,13 +419,16 @@ function renderHourly(data){
   document.getElementById('hourlyChart').innerHTML=h;
 }
 
+let isTestMode=false;
 function renderFlows(flows){
   const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation'};
-  const d={abandoned_cart:'30 min, 24h, 48h apres abandon',upsell:'J+5 apres livraison',winback:'J+30, J+60, J+90 sans achat'};
+  const d=isTestMode
+    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat'}
+    :{abandoned_cart:'30 min, 24h, 48h apres abandon',upsell:'J+5 apres livraison',winback:'J+30, J+60, J+90 sans achat'};
   const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;'};
   let h='';
   flows.forEach(f=>{
-    h+='<div class="flow-row"><div class="flow-info"><span class="flow-icon">'+(icons[f.flow_name]||'')+'</span><div><div class="flow-name">'+(n[f.flow_name]||f.flow_name)+'</div><div class="flow-desc">'+(d[f.flow_name]||'')+'</div></div></div><label class="toggle"><input type="checkbox" '+(f.enabled?'checked':'')+' onchange="toggleFlow(\\''+f.flow_name+'\\',this.checked)"><span class="slider"></span></label></div>';
+    h+='<div class="flow-row"><div class="flow-info"><span class="flow-icon">'+(icons[f.flow_name]||'')+'</span><div><div class="flow-name">'+(n[f.flow_name]||f.flow_name)+'</div><div class="flow-desc">'+(d[f.flow_name]||'')+(isTestMode?' <span style="color:var(--warning);font-weight:600">MODE TEST</span>':'')+'</div></div></div><label class="toggle"><input type="checkbox" '+(f.enabled?'checked':'')+' onchange="toggleFlow(\\''+f.flow_name+'\\',this.checked)"><span class="slider"></span></label></div>';
   });
   document.getElementById('flowControls').innerHTML=h;
 }
