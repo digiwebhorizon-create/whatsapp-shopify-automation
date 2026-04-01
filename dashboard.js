@@ -344,7 +344,7 @@ tr:hover td { background: #f8fafb; }
       </div>
       <div class="tab-content" id="tab-messages">
         <table id="messagesTable">
-          <thead><tr><th>Date</th><th>Tel</th><th>Flow</th><th>Template</th><th>Statut</th><th>Envoye</th><th>Erreur</th></tr></thead>
+          <thead><tr><th>Cree</th><th>Prevu</th><th>Tel</th><th>Flow</th><th>Template</th><th>Statut</th><th>Envoye</th><th>Erreur</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -441,7 +441,7 @@ function renderCheckouts(data){
 
 function renderMessages(data){
   const tb=document.querySelector('#messagesTable tbody');
-  tb.innerHTML=data.map(m=>'<tr><td>'+fmtDate(m.created_at)+'</td><td>'+m.phone+'</td><td style="font-weight:500">'+m.flow+'</td><td style="font-size:12px">'+m.template+'</td><td>'+badge(m.status)+'</td><td>'+fmtDate(m.sent_at)+'</td><td style="font-size:11px;color:var(--danger);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.error||'')+'</td></tr>').join('');
+  tb.innerHTML=data.map(m=>'<tr><td>'+fmtDate(m.created_at)+'</td><td style="font-weight:500;color:var(--teal)">'+fmtDate(m.scheduled_at)+'</td><td>'+m.phone+'</td><td style="font-weight:500">'+m.flow+'</td><td style="font-size:12px">'+m.template+'</td><td>'+badge(m.status)+'</td><td>'+fmtDate(m.sent_at)+'</td><td style="font-size:11px;color:var(--danger);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.error||'')+'</td></tr>').join('');
 }
 
 loadAll();

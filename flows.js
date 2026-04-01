@@ -17,6 +17,12 @@ const abandonedCart = {
   async onCheckoutCreated(shop, checkout) {
     if (!db.isFlowEnabled('abandoned_cart')) return;
 
+    // Dedup: skip if this checkout was already processed
+    if (db.getCheckoutById(String(checkout.id))) {
+      console.log(`[CART] Checkout ${checkout.id} already processed - skipping`);
+      return;
+    }
+
     const phone = checkout.phone || checkout.billing_address?.phone || checkout.shipping_address?.phone;
     if (!phone) {
       console.log(`[CART] No phone for checkout ${checkout.id} - skipping`);
@@ -25,6 +31,12 @@ const abandonedCart = {
 
     if (!db.isOptedIn(phone, shop)) {
       console.log(`[CART] Phone ${phone} not opted in - skipping`);
+      return;
+    }
+
+    // Dedup: skip if this phone already has an active abandoned_cart flow
+    if (db.hasActiveFlow(phone, 'abandoned_cart')) {
+      console.log(`[CART] Phone ${phone} already in abandoned_cart flow - skipping`);
       return;
     }
 
@@ -344,69 +356,6 @@ async function processQueue() {
       db.updateMessageStatus(msg.id, 'failed', null, err.message);
       console.error(`[QUEUE] Error processing message ${msg.id}:`, err.message);
     }
-  }
-}
-
-// Site public (pas le .myshopify.com)
-const SITE_URL = process.env.SITE_URL || 'https://le-bourlingueur.com';
-
-// Build message text — personnalisé avec le prénom, vouvoiement pro
-function buildMessageText(msg, metadata) {
-  const name = metadata.customer_name || '';
-
-  // Résumé commande (liste articles)
-  let recap = '';
-  if (metadata.items && metadata.items.length > 0) {
-    recap = '\n\n🛍 Votre panier :\n' + metadata.items.map(i => `• ${i.title}${i.quantity > 1 ? ` (x${i.quantity})` : ''} — ${i.price}€`).join('\n');
-  }
-
-  // Lien court qui redirige vers le checkout Shopify
-  let cartLink = 'https://le-bourlingueur.com';
-  if (metadata.cart_url) {
-    const shortId = Math.random().toString(36).slice(2, 8);
-    db.saveRedirect(shortId, metadata.cart_url);
-    const baseUrl = process.env.SHORT_URL || 'https://panier.le-bourlingueur.com';
-    cartLink = `${baseUrl}/r/${shortId}`;
-  }
-
-  switch (msg.template) {
-    case 'cart_reminder_1':
-      return name
-        ? `Bonjour ${name} 👋\n\nVous n'avez pas finalisé votre commande !${recap}\n\nVos articles sont encore disponibles.\n\n👉 ${cartLink}\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
-        : `Bonjour 👋\n\nVous avez laissé des articles dans votre panier !${recap}\n\nIls sont encore disponibles.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`;
-
-    case 'cart_reminder_2':
-      return name
-        ? `Bonjour ${name},\n\nVotre panier vous attend toujours 🛒${recap}\n\nNous vous l'avons réservé, mais pour une durée limitée.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\nVotre panier vous attend toujours 🛒${recap}\n\nIl est réservé pour une durée limitée.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`;
-
-    case 'cart_reminder_promo':
-      return name
-        ? `Bonjour ${name},\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${recap}\n\nPour vous aider à finaliser votre commande. Code valable 48h.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n*-10%* avec le code *${metadata.promo_code || 'PANIER10'}* 🎁${recap}\n\nCode valable 48h.\n\n👉 ${cartLink}\n\nLucie - Le Bourlingueur`;
-
-    case 'post_purchase_upsell':
-      return name
-        ? `Bonjour ${name} 😊\n\nMerci pour votre commande ! Découvrez nos dernières nouveautés.\n\n👉 https://le-bourlingueur.com\n\nÀ très bientôt,\nLucie - Le Bourlingueur`
-        : `Bonjour 😊\n\nMerci pour votre commande ! Découvrez nos nouveautés.\n\n👉 https://le-bourlingueur.com\n\nLucie - Le Bourlingueur`;
-
-    case 'winback_news':
-      return name
-        ? `Bonjour ${name} 👋\n\nCela fait un moment ! Découvrez nos dernières nouveautés.\n\n👉 https://le-bourlingueur.com\n\nAu plaisir de vous retrouver,\nLucie - Le Bourlingueur`
-        : `Bonjour 👋\n\nDécouvrez nos dernières nouveautés.\n\n👉 https://le-bourlingueur.com\n\nLucie - Le Bourlingueur`;
-
-    case 'winback_offer_15':
-      return name
-        ? `Bonjour ${name},\n\nVous nous manquez ! *-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 https://le-bourlingueur.com\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n*-15%* avec le code *${metadata.promo_code || 'RETOUR15'}*\n\n👉 https://le-bourlingueur.com\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`;
-
-    case 'winback_offer_20':
-      return name
-        ? `Bonjour ${name},\n\nOffre exclusive : *-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\nNotre meilleure offre, valable 7 jours.\n\n👉 https://le-bourlingueur.com\n\nLucie - Le Bourlingueur`
-        : `Bonjour,\n\n*-20%* sur tout le site avec le code *${metadata.promo_code || 'RETOUR20'}* 🎁\n\n👉 https://le-bourlingueur.com\n\nCode valable 7 jours.\n\nLucie - Le Bourlingueur`;
-
-    default:
-      return `Bonjour,\n\n👉 https://le-bourlingueur.com\n\nLucie - Le Bourlingueur`;
   }
 }
 
