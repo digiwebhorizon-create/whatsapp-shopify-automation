@@ -163,6 +163,72 @@ app.put('/api/templates/:id', async (req, res) => {
   res.json(result);
 });
 
+// ─── Campaigns API ──────────────────────────────
+app.get('/api/campaigns', (req, res) => {
+  res.json(db.getCampaigns());
+});
+
+app.get('/api/customers', (req, res) => {
+  res.json(db.getAllCustomersWithPhone());
+});
+
+app.post('/api/campaigns', async (req, res) => {
+  const { name, template, template_params } = req.body;
+  if (!name || !template) return res.status(400).json({ error: 'name and template required' });
+
+  const customers = db.getAllCustomersWithPhone();
+  const eligible = customers.filter(c => {
+    const shops = db.getShops();
+    return shops.some(s => db.isOptedIn(c.phone, s.domain));
+  });
+
+  const campaignId = db.createCampaign({
+    name, template,
+    template_params: template_params || [],
+    target_filter: 'all',
+    target_count: eligible.length
+  });
+
+  // Queue messages for all eligible customers
+  db.updateCampaignStatus(campaignId, 'sending');
+  let queued = 0;
+  for (const customer of eligible) {
+    db.queueMessage({
+      shop: customer.shop,
+      phone: customer.phone,
+      flow: 'campaign_' + campaignId,
+      step: 1,
+      template,
+      scheduled_at: new Date().toISOString(),
+      metadata: {
+        campaign_id: campaignId,
+        customer_name: customer.name || '',
+        customer_id: customer.id
+      }
+    });
+    queued++;
+  }
+
+  db.updateCampaignStatus(campaignId, 'sending', { sent_count: 0 });
+  res.json({ success: true, campaign_id: campaignId, queued, total_eligible: eligible.length });
+});
+
+app.post('/api/campaigns/:id/cancel', (req, res) => {
+  const campaign = db.getCampaignById(req.params.id);
+  if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+  // Cancel all pending messages for this campaign
+  const flowName = 'campaign_' + req.params.id;
+  const shops = db.getShops();
+  for (const shop of shops) {
+    const customers = db.getCustomersWithPhone(shop.domain);
+    for (const c of customers) {
+      db.cancelMessages(shop.domain, c.phone, flowName);
+    }
+  }
+  db.updateCampaignStatus(req.params.id, 'cancelled');
+  res.json({ success: true });
+});
+
 // ─── Dashboard HTML ─────────────────────────────
 const dashboardServerUrl = process.env.SERVER_URL || 'https://panier.le-bourlingueur.com';
 app.get('/dashboard', (req, res) => {

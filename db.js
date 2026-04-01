@@ -84,6 +84,22 @@ function init() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      template TEXT NOT NULL,
+      template_lang TEXT DEFAULT 'fr',
+      template_params TEXT,
+      status TEXT DEFAULT 'draft',
+      target_filter TEXT DEFAULT 'all',
+      target_count INTEGER DEFAULT 0,
+      sent_count INTEGER DEFAULT 0,
+      failed_count INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      sent_at TEXT,
+      completed_at TEXT
+    );
+
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('abandoned_cart', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('upsell', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('winback', 1);
@@ -337,6 +353,52 @@ function getHourlyDistribution() {
   `).all();
 }
 
+// ─── Campaigns (push) ───────────────────────────
+function createCampaign(campaign) {
+  const result = db.prepare(`
+    INSERT INTO campaigns (name, template, template_lang, template_params, target_filter, target_count)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(campaign.name, campaign.template, campaign.template_lang || 'fr',
+    JSON.stringify(campaign.template_params || []), campaign.target_filter || 'all', campaign.target_count || 0);
+  return result.lastInsertRowid;
+}
+
+function getCampaigns(limit = 20) {
+  return db.prepare('SELECT * FROM campaigns ORDER BY created_at DESC LIMIT ?').all(limit);
+}
+
+function getCampaignById(id) {
+  return db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id);
+}
+
+function updateCampaignStatus(id, status, updates = {}) {
+  const sets = ['status = ?'];
+  const vals = [status];
+  if (updates.sent_count !== undefined) { sets.push('sent_count = ?'); vals.push(updates.sent_count); }
+  if (updates.failed_count !== undefined) { sets.push('failed_count = ?'); vals.push(updates.failed_count); }
+  if (status === 'sending') { sets.push("sent_at = datetime('now')"); }
+  if (status === 'sent' || status === 'completed') { sets.push("completed_at = datetime('now')"); }
+  vals.push(id);
+  db.prepare(`UPDATE campaigns SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+}
+
+// ─── Customers (for campaigns) ──────────────────
+function getCustomersWithPhone(shop) {
+  return db.prepare(`
+    SELECT id, shop, email, phone, name, last_order_at, total_orders
+    FROM customers WHERE shop = ? AND phone IS NOT NULL AND phone != ''
+    ORDER BY last_order_at DESC
+  `).all(shop);
+}
+
+function getAllCustomersWithPhone() {
+  return db.prepare(`
+    SELECT id, shop, email, phone, name, last_order_at, total_orders
+    FROM customers WHERE phone IS NOT NULL AND phone != ''
+    ORDER BY last_order_at DESC
+  `).all();
+}
+
 module.exports = {
   init, saveShop, getShops, getShopToken,
   saveCheckout, getCheckoutById, markCheckoutConverted, getUnconvertedCheckout,
@@ -346,5 +408,7 @@ module.exports = {
   saveCustomer, getInactiveCustomers, updateWinbackStage,
   saveRedirect, getRedirectUrl, clearAll,
   getSqliteNow, getStats,
-  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getDailyRevenue, getHourlyDistribution
+  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getDailyRevenue, getHourlyDistribution,
+  createCampaign, getCampaigns, getCampaignById, updateCampaignStatus,
+  getCustomersWithPhone, getAllCustomersWithPhone
 };

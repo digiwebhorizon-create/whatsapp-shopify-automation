@@ -245,6 +245,16 @@ tr:hover td { background: #f8fafb; }
 
   <div class="card">
     <div class="card-header">
+      <h2>&#128227; Campagnes push</h2>
+      <button class="btn btn-magenta" onclick="openCampaignModal()">+ Nouvelle campagne</button>
+    </div>
+    <div class="card-body" id="campaignsList">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
       <h2>Donnees</h2>
     </div>
     <div class="card-body">
@@ -323,6 +333,7 @@ async function loadAll(){
     const ck=await api('/api/checkouts?limit=40');renderCheckouts(ck);
     const ms=await api('/api/messages?limit=60');renderMessages(ms);
     try{const t=await api('/api/templates');if(Array.isArray(t))allTemplates=t;}catch(e){}
+    try{const cp=await api('/api/campaigns');renderCampaigns(cp);}catch(e){}
   }catch(err){console.error('Dashboard error:',err);document.getElementById('kpiGrid').innerHTML='<div style="padding:20px;color:#dc2626">Erreur de chargement: '+err.message+'</div>';}
 }
 
@@ -497,6 +508,102 @@ function renderMessages(data){
   const tb=document.querySelector('#messagesTable tbody');
   if(!data||data.length===0){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">Aucun message</td></tr>';return;}
   tb.innerHTML=data.map(m=>'<tr><td>'+fmtDate(m.created_at)+'</td><td style="font-weight:500;color:var(--teal)">'+fmtDate(m.scheduled_at)+'</td><td>'+m.phone+'</td><td style="font-weight:500">'+m.flow+'</td><td style="font-size:12px">'+m.template+'</td><td>'+badge(m.status)+'</td><td>'+fmtDate(m.sent_at)+'</td><td style="font-size:11px;color:var(--danger);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.error||'')+'</td></tr>').join('');
+}
+
+// ─── Campaigns push ─────────────────────────────
+function renderCampaigns(data){
+  const el=document.getElementById('campaignsList');
+  if(!data||data.length===0){
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:10px">Aucune campagne — cliquez sur "+ Nouvelle campagne" pour commencer</div>';
+    return;
+  }
+  let h='<table><thead><tr><th>Date</th><th>Nom</th><th>Template</th><th>Cibles</th><th>Envoyes</th><th>Echecs</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+  data.forEach(c=>{
+    const statusMap={draft:'En attente',sending:'Envoi...',sent:'Termine',completed:'Termine',cancelled:'Annule'};
+    const statusClass={draft:'queued',sending:'queued',sent:'sent',completed:'sent',cancelled:'cancelled'};
+    h+='<tr><td>'+fmtDate(c.created_at)+'</td><td style="font-weight:600">'+escHtml(c.name)+'</td><td style="font-size:12px">'+escHtml(c.template)+'</td><td style="text-align:center">'+c.target_count+'</td><td style="text-align:center;color:var(--success);font-weight:600">'+c.sent_count+'</td><td style="text-align:center;color:var(--danger)">'+c.failed_count+'</td><td>'+badge(statusClass[c.status]||c.status)+'</td>';
+    if(c.status==='sending'||c.status==='draft'){
+      h+='<td><button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="cancelCampaign('+c.id+')">Annuler</button></td>';
+    }else{
+      h+='<td>-</td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  el.innerHTML=h;
+}
+
+async function openCampaignModal(){
+  // Load customers count and templates
+  let customers=[];
+  try{customers=await api('/api/customers');}catch(e){}
+
+  document.getElementById('modalTitle').textContent='Nouvelle campagne push';
+
+  let tplOptions='';
+  allTemplates.filter(t=>t.status==='APPROVED'&&t.language==='fr').forEach(t=>{
+    tplOptions+='<option value="'+escHtml(t.name)+'">'+escHtml(t.name)+'</option>';
+  });
+
+  let h='<div class="warning-banner">&#128227; <div><strong>Campagne push</strong> — Envoie un template Meta WhatsApp a tous vos clients avec un numero de telephone. Les messages passent par la queue et respectent la plage horaire 8h-21h.</div></div>';
+
+  h+='<div style="margin-bottom:16px"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px"><strong>'+customers.length+'</strong> clients avec numero de telephone</div>';
+
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Nom de la campagne</label><input type="text" id="campaignName" placeholder="Ex: Soldes printemps 2026" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:Poppins,sans-serif;font-size:13px"></div>';
+
+  h+='<div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Template Meta (approuve)</label><select id="campaignTemplate" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:Poppins,sans-serif;font-size:13px">';
+  h+=tplOptions||'<option value="">Aucun template approuve</option>';
+  h+='</select></div>';
+
+  h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px">&#9989; <strong>'+customers.length+' destinataires</strong> recevront ce message via la queue (plage 8h-21h)</div>';
+
+  h+='<div style="display:flex;gap:8px"><button class="btn btn-magenta" onclick="sendCampaign()" id="sendCampaignBtn">Lancer la campagne</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="campaignStatus"></span></div></div>';
+
+  document.getElementById('modalBody').innerHTML=h;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function sendCampaign(){
+  const name=document.getElementById('campaignName').value.trim();
+  const template=document.getElementById('campaignTemplate').value;
+  const status=document.getElementById('campaignStatus');
+  const btn=document.getElementById('sendCampaignBtn');
+
+  if(!name){status.className='status-msg err';status.textContent='Donnez un nom a la campagne';return;}
+  if(!template){status.className='status-msg err';status.textContent='Selectionnez un template';return;}
+
+  btn.disabled=true;
+  status.className='status-msg';
+  status.textContent='Lancement...';
+
+  try{
+    const res=await fetch(SERVER+'/api/campaigns',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,template})
+    });
+    const data=await res.json();
+    if(data.success){
+      status.className='status-msg ok';
+      status.textContent=data.queued+' messages en queue !';
+      setTimeout(()=>{closeModal();loadAll();},1500);
+    }else{
+      status.className='status-msg err';
+      status.textContent='Erreur : '+(data.error||'echec');
+    }
+  }catch(err){
+    status.className='status-msg err';
+    status.textContent='Erreur : '+err.message;
+  }
+  btn.disabled=false;
+}
+
+async function cancelCampaign(id){
+  if(!confirm('Annuler cette campagne ?')) return;
+  try{
+    await fetch(SERVER+'/api/campaigns/'+id+'/cancel',{method:'POST'});
+    loadAll();
+  }catch(e){alert('Erreur: '+e.message);}
 }
 
 loadAll();
