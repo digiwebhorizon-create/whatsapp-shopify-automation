@@ -564,7 +564,7 @@ app.post('/api/create-templates', requireAuth, async (req, res) => {
       'MARKETING',
       'fr',
       [
-        { type: 'BODY', text: 'Bonjour {{1}} ! 😊\\n\\nVotre commande a ete livree depuis quelques jours. Nous esperons que tout vous plait !\\n\\nVotre avis compte enormement pour nous. Pourriez-vous prendre 30 secondes pour nous laisser un avis ? ⭐\\n\\nMerci beaucoup !\\nL\\'equipe Le Bourlingueur' },
+        { type: 'BODY', text: "Bonjour {{1}} ! 😊\\n\\nVotre commande a ete livree depuis quelques jours. Nous esperons que tout vous plait !\\n\\nVotre avis compte enormement pour nous. Pourriez-vous prendre 30 secondes pour nous laisser un avis ? ⭐\\n\\nMerci beaucoup !\\nL'equipe Le Bourlingueur" },
         { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'Laisser un avis ⭐', url: 'https://le-bourlingueur.com/pages/avis' }] }
       ]
     );
@@ -579,7 +579,7 @@ app.post('/api/create-templates', requireAuth, async (req, res) => {
       'MARKETING',
       'fr',
       [
-        { type: 'BODY', text: 'Joyeux anniversaire {{1}} ! 🎂🎉\\n\\nPour celebrer ce jour special, voici un code promo rien que pour vous :\\n\\n🎁 *{{2}}* — {{3}}% de reduction\\n\\nValable 7 jours sur tout le site !\\n\\nBon anniversaire de la part de toute l\\'equipe Le Bourlingueur ! 🥳' },
+        { type: 'BODY', text: "Joyeux anniversaire {{1}} ! 🎂🎉\\n\\nPour celebrer ce jour special, voici un code promo rien que pour vous :\\n\\n🎁 *{{2}}* — {{3}}% de reduction\\n\\nValable 7 jours sur tout le site !\\n\\nBon anniversaire de la part de toute l'equipe Le Bourlingueur ! 🥳" },
         { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'En profiter 🎁', url: 'https://le-bourlingueur.com' }] }
       ]
     );
