@@ -133,4 +133,24 @@ async function updateTemplate(templateId, components) {
   }
 }
 
-module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours, getTemplates, updateTemplate };
+async function createTemplate(name, category, language, components) {
+  const token = WA_TOKEN;
+  if (!token) return { success: false, error: 'No token' };
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v22.0/${WABA_ID}/message_templates`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category, language, components })
+      }
+    );
+    const data = await response.json();
+    if (data.id || response.ok) return { success: true, data };
+    return { success: false, error: data.error?.message || JSON.stringify(data) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours, getTemplates, updateTemplate, createTemplate };

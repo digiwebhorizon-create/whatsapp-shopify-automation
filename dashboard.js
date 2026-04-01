@@ -338,6 +338,17 @@ tr:hover td { background: #f8fafb; }
     </div>
   </div>
 
+  <!-- CA recupere dans le temps -->
+  <div class="card">
+    <div class="card-header">
+      <h2>&#128200; CA recupere dans le temps</h2>
+      <span style="font-size:11px;color:var(--text-secondary)">30 derniers jours</span>
+    </div>
+    <div class="card-body" id="revenueChart">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
+    </div>
+  </div>
+
   <!-- Stats par template -->
   <div class="card">
     <div class="card-header">
@@ -536,7 +547,8 @@ const FLOW_TEMPLATES={
   upsell:['post_purchase_upsell'],
   winback:['winback_news','winback_offer_15','winback_offer_20'],
   review:['demande_avis'],
-  birthday:['birthday_wish']
+  birthday:['birthday_wish'],
+  crosssell:['crosssell_suggestion']
 };
 
 // ─── Main load ───────────────────────────────────
@@ -550,8 +562,14 @@ async function loadAll(){
     const rev=(s.revenue_recovered||0);
     const totalCost=((s.messages_sent||0)*waCost);
     const roi=totalCost>0?((rev/totalCost)).toFixed(1):'--';
+    // Delivery stats
+    let delStats={sent:0,delivered:0,read_count:0};
+    try{delStats=await api('/api/delivery-stats?_=1'+dp);}catch(e){}
+    const delivRate=delStats.sent>0?Math.round(delStats.delivered/delStats.sent*100):0;
+    const readRate=delStats.sent>0?Math.round(delStats.read_count/delStats.sent*100):0;
+
     document.getElementById('kpiGrid').innerHTML=[
-      kpi('Messages envoyes',s.messages_sent||0,'','teal'),
+      kpi('Messages envoyes',s.messages_sent||0,'Livres: '+delivRate+'% — Lus: '+readRate+'%','teal'),
       kpi('En attente / Echoues',(s.messages_queued||0)+' / '+(s.messages_failed||0),'','orange'),
       kpi('Paniers recuperes',s.recovered_checkouts||0,(s.recovery_rate||0)+'% sur '+(s.total_checkouts||0)+' detectes','green'),
       kpi('CA recupere',rev.toFixed(0)+' EUR','ROI: x'+roi,'magenta'),
@@ -559,6 +577,8 @@ async function loadAll(){
     ].join('');
     const bf=await api('/api/messages-by-flow?_=1'+dp);renderFlowChart(bf);
     const hr=await api('/api/hourly-distribution?_=1'+dp);renderHourly(hr);
+    // Revenue chart
+    try{const rc=await api('/api/revenue-chart?days=30');renderRevenueChart(rc);}catch(e){}
     const fl=await api('/api/flows');renderFlows(fl);
     const ck=await api('/api/checkouts?limit=40'+dp);renderCheckouts(ck);
     const ms=await api('/api/messages?limit=60'+dp);renderMessages(ms);
@@ -598,7 +618,7 @@ function renderCostCard(stats, flowData, campaigns){
     flows[r.flow].total+=r.count;
     if(r.status==='sent')flows[r.flow].sent+=r.count;
   });
-  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire'};
+  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
 
   // Campaign costs
   let campaignCostTotal=0;
@@ -666,7 +686,7 @@ function renderCostCard(stats, flowData, campaigns){
 function renderFlowChart(data){
   const f={};
   data.forEach(r=>{if(!f[r.flow])f[r.flow]={sent:0,queued:0,failed:0,cancelled:0};f[r.flow][r.status]=r.count});
-  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire'};
+  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
   let h='<table><thead><tr><th>Flow</th><th>Envoyes</th><th>Attente</th><th>Echoues</th><th>Annules</th><th>Total</th><th>Cout</th></tr></thead><tbody>';
   for(const[k,d]of Object.entries(f)){
     const t=d.sent+d.queued+d.failed+d.cancelled;
@@ -693,12 +713,37 @@ function renderHourly(data){
   document.getElementById('hourlyChart').innerHTML=h;
 }
 
+function renderRevenueChart(data){
+  const el=document.getElementById('revenueChart');
+  if(!data||data.length===0){
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucune conversion — le graphique apparaitra apres la premiere vente recuperee.</div>';
+    return;
+  }
+  const mx=Math.max(...data.map(d=>d.revenue),1);
+  const totalRev=data.reduce((s,d)=>s+d.revenue,0);
+  const totalConv=data.reduce((s,d)=>s+d.conversions,0);
+  let h='<div style="margin-bottom:12px;font-size:13px"><strong>'+totalConv+'</strong> conversion'+(totalConv>1?'s':'')+' — <strong>'+totalRev.toFixed(0)+' EUR</strong> recuperes sur 30 jours</div>';
+  h+='<div style="display:flex;align-items:flex-end;gap:3px;height:120px">';
+  data.reverse().forEach(d=>{
+    const p=d.revenue/mx*100;
+    const dt=new Date(d.day);
+    const label=dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+    h+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:0">';
+    if(d.revenue>0) h+='<div style="font-size:9px;font-weight:600;color:var(--success);margin-bottom:2px">'+d.revenue.toFixed(0)+'</div>';
+    h+='<div style="width:100%;max-width:30px;height:'+Math.max(p,3)+'%;background:var(--success);border-radius:3px 3px 0 0;min-height:2px"></div>';
+    h+='<div style="font-size:8px;color:var(--text-secondary);margin-top:3px;white-space:nowrap;overflow:hidden">'+label+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
 function renderFlows(flows){
-  const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client'};
+  const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client',crosssell:'Cross-sell'};
   const d=isTestMode
-    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat',review:'TEST : demande avis rapide',birthday:'TEST : message anniversaire'}
-    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+10 apres livraison (delai reception)',winback:'Envoi a J+30, J+60, J+90 sans achat',review:'Demande d avis J+15 apres livraison',birthday:'Message + promo le jour de l anniversaire'};
-  const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;',review:'&#11088;',birthday:'&#127874;'};
+    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat',review:'TEST : demande avis rapide',birthday:'TEST : message anniversaire',crosssell:'TEST : 5 min apres livraison'}
+    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+10 apres livraison (delai reception)',winback:'Envoi a J+30, J+60, J+90 sans achat',review:'Demande d avis J+15 apres livraison',birthday:'Message + promo le jour de l anniversaire',crosssell:'Suggestions produits J+14 apres livraison'};
+  const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;',review:'&#11088;',birthday:'&#127874;',crosssell:'&#128717;'};
   let h='';
   flows.forEach(f=>{
     const testBadge=isTestMode?' <span style="color:var(--warning);font-weight:600;font-size:11px">MODE TEST</span>':'';
@@ -721,7 +766,7 @@ async function toggleFlow(n,e){
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open')}
 
 function openFlowModal(flowName){
-  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client'};
+  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client',crosssell:'Cross-sell'};
   document.getElementById('modalTitle').textContent=names[flowName]||flowName;
 
   const tplNames=FLOW_TEMPLATES[flowName]||[];
@@ -826,7 +871,7 @@ function renderTemplateStats(tplStats, flowConv){
     return;
   }
 
-  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell',winback:'Winback',review:'Demande avis',birthday:'Anniversaire'};
+  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell',winback:'Winback',review:'Demande avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
   const stepNames={abandoned_cart:{1:'Rappel 30min',2:'Rappel 24h',3:'Promo 48h'},upsell:{1:'Recommendation'},winback:{1:'Nouveautes J+30',2:'-15% J+60',3:'-20% J+90'},review:{1:'Demande avis J+15'},birthday:{1:'Voeux'}};
 
   // Group by flow

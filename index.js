@@ -131,6 +131,7 @@ app.post('/webhooks/orders-fulfilled', async (req, res) => {
     console.log(`[WEBHOOK] orders/fulfilled from ${shopDomain} - order ${order.id}`);
     await flows.upsell.onOrderFulfilled(shopDomain, order);
     await flows.review.onOrderFulfilled(shopDomain, order);
+    await flows.crosssell.onOrderFulfilled(shopDomain, order);
   } catch (err) {
     console.error('[WEBHOOK] orders/fulfilled error:', err.message);
   }
@@ -170,6 +171,15 @@ app.post('/webhooks/whatsapp', (req, res) => {
       for (const change of changes) {
         if (change.field !== 'messages') continue;
         const messages = change.value?.messages || [];
+
+        // Handle message status updates (delivered, read)
+        const statuses = change.value?.statuses || [];
+        for (const status of statuses) {
+          if (status.id && (status.status === 'delivered' || status.status === 'read')) {
+            db.updateMessageDeliveryStatus(status.id, status.status);
+            console.log(`[WA-WEBHOOK] Status: ${status.id} → ${status.status}`);
+          }
+        }
 
         for (const msg of messages) {
           const phone = msg.from;
@@ -381,6 +391,17 @@ app.get('/api/flow-conversion-stats', requireAuth, (req, res) => {
   res.json(db.getFlowConversionStats(from, to));
 });
 
+// ─── Delivery Stats ─────────────────────────────
+app.get('/api/delivery-stats', requireAuth, (req, res) => {
+  const { from, to } = req.query;
+  res.json(db.getDeliveryStats(from, to));
+});
+
+app.get('/api/revenue-chart', requireAuth, (req, res) => {
+  const days = parseInt(req.query.days) || 30;
+  res.json(db.getDailyRevenue(days));
+});
+
 // ─── A/B Test Results ───────────────────────────
 app.get('/api/ab-results', requireAuth, (req, res) => {
   res.json(db.getABTestResults());
@@ -466,6 +487,109 @@ app.get('/r/:id', (req, res) => {
   }
 });
 
+// ─── System Health Check ────────────────────────
+app.get('/api/health', requireAuth, async (req, res) => {
+  const checks = {};
+
+  // 1. Check Shopify webhooks
+  try {
+    const shops = db.getShops();
+    checks.shops = shops.map(s => s.domain);
+    if (shops.length > 0) {
+      const existing = await shopify.apiCall(shops[0].domain, 'webhooks.json');
+      checks.shopify_webhooks = (existing.webhooks || []).map(w => ({
+        topic: w.topic,
+        address: w.address,
+        created_at: w.created_at
+      }));
+    } else {
+      checks.shopify_webhooks = 'No shops registered';
+    }
+  } catch (err) {
+    checks.shopify_webhooks = { error: err.message };
+  }
+
+  // 2. Check Meta WhatsApp templates
+  try {
+    const result = await whatsapp.getTemplates();
+    if (result.success) {
+      checks.meta_templates = result.templates.map(t => ({
+        name: t.name,
+        status: t.status,
+        language: t.language,
+        category: t.category
+      }));
+    } else {
+      checks.meta_templates = { error: result.error };
+    }
+  } catch (err) {
+    checks.meta_templates = { error: err.message };
+  }
+
+  // 3. Check required templates
+  const requiredTemplates = ['panier_rappel_1', 'panier_rappel_2', 'panier_rappel_promo', 'post_purchase_upsell', 'winback_news', 'winback_offer_15', 'winback_offer_20', 'demande_avis', 'birthday_wish'];
+  const existingNames = Array.isArray(checks.meta_templates) ? checks.meta_templates.map(t => t.name) : [];
+  checks.missing_templates = requiredTemplates.filter(t => !existingNames.includes(t));
+
+  // 4. Queue status
+  checks.queue = {
+    pending: db.getPendingMessages().length,
+    sending_hours: whatsapp.isWithinSendingHours(),
+    sqlite_now: db.getSqliteNow(),
+    test_mode: process.env.TEST_MODE === 'true'
+  };
+
+  // 5. WhatsApp webhook
+  checks.whatsapp_webhook = {
+    verify_endpoint: '/webhooks/whatsapp',
+    verify_token_set: !!process.env.WA_VERIFY_TOKEN,
+    note: 'Configure in Meta Business Suite → WhatsApp → Configuration → Webhook URL'
+  };
+
+  res.json(checks);
+});
+
+// ─── Create missing Meta templates ──────────────
+app.post('/api/create-templates', requireAuth, async (req, res) => {
+  const results = {};
+
+  // Check which templates already exist
+  const existing = await whatsapp.getTemplates();
+  const existingNames = existing.success ? existing.templates.map(t => t.name) : [];
+
+  // Template: demande_avis
+  if (!existingNames.includes('demande_avis')) {
+    results.demande_avis = await whatsapp.createTemplate(
+      'demande_avis',
+      'MARKETING',
+      'fr',
+      [
+        { type: 'BODY', text: 'Bonjour {{1}} ! 😊\\n\\nVotre commande a ete livree depuis quelques jours. Nous esperons que tout vous plait !\\n\\nVotre avis compte enormement pour nous. Pourriez-vous prendre 30 secondes pour nous laisser un avis ? ⭐\\n\\nMerci beaucoup !\\nL\\'equipe Le Bourlingueur' },
+        { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'Laisser un avis ⭐', url: 'https://le-bourlingueur.com/pages/avis' }] }
+      ]
+    );
+  } else {
+    results.demande_avis = { skipped: true, reason: 'Template already exists' };
+  }
+
+  // Template: birthday_wish
+  if (!existingNames.includes('birthday_wish')) {
+    results.birthday_wish = await whatsapp.createTemplate(
+      'birthday_wish',
+      'MARKETING',
+      'fr',
+      [
+        { type: 'BODY', text: 'Joyeux anniversaire {{1}} ! 🎂🎉\\n\\nPour celebrer ce jour special, voici un code promo rien que pour vous :\\n\\n🎁 *{{2}}* — {{3}}% de reduction\\n\\nValable 7 jours sur tout le site !\\n\\nBon anniversaire de la part de toute l\\'equipe Le Bourlingueur ! 🥳' },
+        { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'En profiter 🎁', url: 'https://le-bourlingueur.com' }] }
+      ]
+    );
+  } else {
+    results.birthday_wish = { skipped: true, reason: 'Template already exists' };
+  }
+
+  res.json(results);
+});
+
 // Clear all data (debug)
 app.post('/api/clear', requireAuth, (req, res) => {
   db.clearAll();
@@ -506,6 +630,16 @@ cron.schedule('*/5 * * * *', async () => {
     await flows.pollAbandonedCheckouts();
   } catch (err) {
     console.error('[CRON] pollAbandonedCheckouts error:', err.message);
+  }
+});
+
+// Birthday scan daily at 8:00
+cron.schedule('0 8 * * *', async () => {
+  try {
+    console.log('[CRON] Running birthday scan...');
+    await flows.birthday.scan();
+  } catch (err) {
+    console.error('[CRON] birthday error:', err.message);
   }
 });
 

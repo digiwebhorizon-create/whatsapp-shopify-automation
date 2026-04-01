@@ -339,6 +339,145 @@ const review = {
 };
 
 // ═══════════════════════════════════════════════════
+// FLOW 5: BIRTHDAY
+// Daily scan → find customers with birthday today → send promo code
+// ═══════════════════════════════════════════════════
+const birthday = {
+  async scan() {
+    if (!db.isFlowEnabled('birthday')) return;
+
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+
+    const shops = db.getShops();
+    for (const shop of shops) {
+      try {
+        // Get all customers and filter by birthday
+        const customers = await shopify.getAllCustomers(shop.domain);
+        for (const customer of customers) {
+          // Shopify stores birthday in customer metafields or note
+          // Check note field for birthday format DD/MM or MM-DD
+          const note = customer.note || '';
+          const birthdayMatch = note.match(/anniversaire[:\s]*(\d{2})[\/\-](\d{2})/i)
+            || note.match(/birthday[:\s]*(\d{2})[\/\-](\d{2})/i)
+            || note.match(/naissance[:\s]*(\d{2})[\/\-](\d{2})/i);
+
+          if (!birthdayMatch) continue;
+
+          const bDay = birthdayMatch[1];
+          const bMonth = birthdayMatch[2];
+
+          // Check if today is the birthday (DD/MM format)
+          if (bDay !== day || bMonth !== month) continue;
+
+          const phone = customer.phone || customer.default_address?.phone;
+          if (!phone) continue;
+          if (!db.isOptedIn(phone, shop.domain)) continue;
+
+          // Don't send if already sent this year
+          if (db.hasActiveFlow(phone, 'birthday')) continue;
+
+          // Generate birthday promo code
+          const code = 'BDAY-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+          const percentage = 15;
+          try {
+            await shopify.createDiscountCode(shop.domain, code, percentage, 1);
+          } catch (err) {
+            console.error(`[BIRTHDAY] Failed to create promo code for ${phone}: ${err.message}`);
+            continue;
+          }
+
+          const customerName = customer.first_name || '';
+          const sendTime = new Date();
+          sendTime.setHours(9, 0, 0, 0); // Send at 9am
+          if (sendTime < new Date()) sendTime.setDate(sendTime.getDate()); // If past 9am, send now
+
+          db.queueMessage({
+            shop: shop.domain, phone, flow: 'birthday', step: 1,
+            template: 'birthday_wish',
+            scheduled_at: sendTime.toISOString(),
+            metadata: {
+              customer_name: customerName,
+              promo_code: code,
+              discount_percent: percentage
+            }
+          });
+
+          console.log(`[BIRTHDAY] 🎂 Queued birthday message for ${phone} (${customerName}), code: ${code}`);
+        }
+      } catch (err) {
+        console.error(`[BIRTHDAY] Error scanning ${shop.domain}:`, err.message);
+      }
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// FLOW 6: CROSS-SELL
+// Order fulfilled → wait 14 days → suggest complementary products
+// ═══════════════════════════════════════════════════
+const CROSSSELL_DELAY = TEST_MODE
+  ? 5 * 60 * 1000  // 5 minutes in test mode
+  : 14 * 24 * 60 * 60 * 1000; // 14 days
+
+const crosssell = {
+  async onOrderFulfilled(shop, order) {
+    if (!db.isFlowEnabled('crosssell')) return;
+
+    const phone = order.phone || order.billing_address?.phone || order.shipping_address?.phone;
+    if (!phone) return;
+    if (!db.isOptedIn(phone, shop)) return;
+
+    // Don't send if already in a crosssell flow
+    if (db.hasActiveFlow(phone, 'crosssell')) return;
+
+    // Get product IDs from the order
+    const lineItems = order.line_items || [];
+    if (lineItems.length === 0) return;
+
+    // Get recommendations based on purchased products
+    const purchasedIds = lineItems.map(li => li.product_id).filter(Boolean);
+    let recommendations = [];
+    try {
+      recommendations = await shopify.getProductRecommendations(shop, purchasedIds[0]);
+      // Filter out already purchased products
+      recommendations = recommendations.filter(p => !purchasedIds.includes(p.id)).slice(0, 3);
+    } catch (err) {
+      console.error(`[CROSSSELL] Failed to get recommendations: ${err.message}`);
+      return;
+    }
+
+    if (recommendations.length === 0) return;
+
+    const customerName = order.customer?.first_name || order.billing_address?.first_name || '';
+    const sendTime = new Date(Date.now() + CROSSSELL_DELAY);
+
+    // Build product list text
+    const productList = recommendations.map(p => `• ${p.title}`).join('\n');
+
+    db.queueMessage({
+      shop, phone, flow: 'crosssell', step: 1,
+      template: 'crosssell_suggestion',
+      scheduled_at: sendTime.toISOString(),
+      metadata: {
+        order_id: String(order.id),
+        customer_name: customerName,
+        purchased: lineItems.map(li => li.title).join(', '),
+        recommendations: recommendations.map(p => ({
+          title: p.title,
+          image_url: p.image?.src || '',
+          handle: p.handle
+        })),
+        product_list: productList
+      }
+    });
+
+    console.log(`[CROSSSELL] Queued for ${phone} (${recommendations.length} suggestions, send in 14 days)`);
+  }
+};
+
+// ═══════════════════════════════════════════════════
 // ABANDONED CHECKOUT POLLING
 // Polls Shopify API every 5 min for abandoned checkouts (more reliable than webhook)
 // ═══════════════════════════════════════════════════
@@ -483,4 +622,4 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-module.exports = { abandonedCart, upsell, winback, review, processQueue, pollAbandonedCheckouts };
+module.exports = { abandonedCart, upsell, winback, review, birthday, crosssell, processQueue, pollAbandonedCheckouts };

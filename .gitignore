@@ -2,3 +2,6 @@ node_modules/
 data/
 .env
 test-send.js
+setup-webhooks.js
+register-shop.js
+dashboard_v1_backup.js

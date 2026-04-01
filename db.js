@@ -140,7 +140,15 @@ function init() {
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('upsell', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('winback', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('review', 1);
+    INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('birthday', 0);
+    INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('crosssell', 0);
   `);
+
+  // Add delivery_status column if not exists
+  try {
+    db.prepare('ALTER TABLE messages ADD COLUMN delivery_status TEXT').run();
+    console.log('[DB] Added delivery_status column');
+  } catch (e) { /* column already exists */ }
 
   console.log('[DB] Tables created');
 }
@@ -219,6 +227,12 @@ function updateMessageStatus(id, status, waMessageId, error) {
     UPDATE messages SET status = ?, wa_message_id = ?, sent_at = datetime('now'), error = ?
     WHERE id = ?
   `).run(status, waMessageId, error, id);
+}
+
+function updateMessageDeliveryStatus(waMessageId, deliveryStatus) {
+  db.prepare(`
+    UPDATE messages SET delivery_status = ? WHERE wa_message_id = ?
+  `).run(deliveryStatus, waMessageId);
 }
 
 function cancelMessages(shop, phone, flow) {
@@ -476,6 +490,17 @@ function getMessagesByTemplate() {
   `).all();
 }
 
+function getDeliveryStats(from, to) {
+  const df = dateClause(from, to);
+  return db.prepare(`
+    SELECT
+      COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+      COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered,
+      COUNT(CASE WHEN delivery_status = 'read' THEN 1 END) as read_count
+    FROM messages WHERE status = 'sent' ${df.sql}
+  `).get(...df.params);
+}
+
 function getDailyRevenue(days = 30) {
   return db.prepare(`
     SELECT DATE(converted_at) as day, COUNT(*) as conversions,
@@ -715,13 +740,13 @@ function getAlerts(limit = 50) {
 module.exports = {
   init, saveShop, getShops, getShopToken,
   saveCheckout, getCheckoutById, getCheckoutsByEmail, markCheckoutConverted, getUnconvertedCheckout,
-  queueMessage, getPendingMessages, updateMessageStatus, cancelMessages, hasActiveFlow, getRecentMessages,
+  queueMessage, getPendingMessages, updateMessageStatus, updateMessageDeliveryStatus, cancelMessages, hasActiveFlow, getRecentMessages,
   isOptedIn, saveOptin, optOut,
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
   saveRedirect, getRedirectUrl, trackRedirectClick, getRedirectClicks, getTotalClicks, clearAll,
   getSqliteNow, getStats,
-  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getTemplateStats, getFlowConversionStats, getDailyRevenue, getHourlyDistribution,
+  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getTemplateStats, getFlowConversionStats, getDeliveryStats, getDailyRevenue, getHourlyDistribution,
   createCampaign, getCampaigns, getCampaignById, updateCampaignStatus,
   getCustomersWithPhone, getAllCustomersWithPhone,
   addContact, updateContact, deleteContact, getContacts, getSegments,
