@@ -606,7 +606,7 @@ function renderCostCard(stats, flowData, campaigns){
   (campaigns||[]).forEach(c=>{campaignCostTotal+=c.sent_count*waCost;campaignSentTotal+=c.sent_count;});
 
   // Totals
-  const totalSent=stats.messages_sent||0;
+  // totalSent already declared above
   const totalCost=totalSent*waCost;
   const rev=stats.revenue_recovered||0;
   const roi=totalCost>0?(rev/totalCost):0;
