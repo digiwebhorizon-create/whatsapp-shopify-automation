@@ -708,4 +708,25 @@ app.listen(PORT, () => {
       console.error(`[STARTUP] Webhook setup failed for ${shop.domain}:`, err.message);
     });
   }
+
+  // Backfill: recover abandoned checkouts from last 24h on startup
+  // This ensures no data is lost after a redeploy
+  setTimeout(async () => {
+    try {
+      console.log('[BACKFILL] Recovering abandoned checkouts from last 24h...');
+      const allShops = db.getShops();
+      for (const shop of allShops) {
+        const checkouts = await shopify.getAbandonedCheckouts(shop.domain, 1440); // 24h = 1440 min
+        let recovered = 0;
+        for (const checkout of checkouts) {
+          if (db.getCheckoutById(checkout.id)) continue;
+          await flows.abandonedCart.onCheckoutCreated(shop.domain, checkout);
+          recovered++;
+        }
+        console.log(`[BACKFILL] ${recovered} abandoned checkouts recovered for ${shop.domain}`);
+      }
+    } catch (err) {
+      console.error('[BACKFILL] Error:', err.message);
+    }
+  }, 5000); // Wait 5s for DB to be fully ready
 });
