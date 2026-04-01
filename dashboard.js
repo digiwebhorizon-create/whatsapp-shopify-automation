@@ -353,7 +353,7 @@ tr:hover td { background: #f8fafb; }
 </div>
 
 <script>
-const SERVER = '${base}';
+const SERVER = '';
 async function api(p){return(await fetch(SERVER+p)).json()}
 function fmtDate(d){if(!d)return'-';const dt=new Date(d.replace(' ','T')+(d.includes('Z')?'':'Z'));return dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function badge(s){const labels={sent:'Envoye',queued:'En attente',failed:'Echoue',cancelled:'Annule',converted:'Recupere',abandoned:'Abandonne'};return '<span class="badge '+s+'">'+(labels[s]||s)+'</span>'}
@@ -366,23 +366,26 @@ function switchTab(name,el){
 }
 
 async function loadAll(){
-  document.getElementById('lastRefresh').textContent=new Date().toLocaleTimeString('fr-FR');
-  const s=await api('/api/stats');
-  document.getElementById('kpiGrid').innerHTML=[
-    kpi('Messages envoyes',s.messages_sent,'','teal'),
-    kpi('En attente',s.messages_queued,'','teal'),
-    kpi('Echoues',s.messages_failed,'','red'),
-    kpi('Annules',s.messages_cancelled,'Conversion client','orange'),
-    kpi('Paniers detectes',s.total_checkouts,'dont '+s.abandoned_checkouts+' en cours','teal'),
-    kpi('Paniers recuperes',s.recovered_checkouts,s.recovery_rate+'% de conversion','green'),
-    kpi('Revenu recupere',s.revenue_recovered.toFixed(0)+' EUR','','magenta'),
-    kpi('Clients suivis',s.total_customers,s.total_optins+' opt-ins','teal'),
-  ].join('');
-  const bf=await api('/api/messages-by-flow');renderFlowChart(bf);
-  const hr=await api('/api/hourly-distribution');renderHourly(hr);
-  const fl=await api('/api/flows');renderFlows(fl);
-  const ck=await api('/api/checkouts?limit=40');renderCheckouts(ck);
-  const ms=await api('/api/messages?limit=60');renderMessages(ms);
+  try{
+    document.getElementById('lastRefresh').textContent=new Date().toLocaleTimeString('fr-FR');
+    const s=await api('/api/stats');
+    const rev=(s.revenue_recovered||0);
+    document.getElementById('kpiGrid').innerHTML=[
+      kpi('Messages envoyes',s.messages_sent||0,'','teal'),
+      kpi('En attente',s.messages_queued||0,'','teal'),
+      kpi('Echoues',s.messages_failed||0,'','red'),
+      kpi('Annules',s.messages_cancelled||0,'Conversion client','orange'),
+      kpi('Paniers detectes',s.total_checkouts||0,'dont '+(s.abandoned_checkouts||0)+' en cours','teal'),
+      kpi('Paniers recuperes',s.recovered_checkouts||0,(s.recovery_rate||0)+'% de conversion','green'),
+      kpi('Revenu recupere',rev.toFixed(0)+' EUR','','magenta'),
+      kpi('Clients suivis',s.total_customers||0,(s.total_optins||0)+' opt-ins','teal'),
+    ].join('');
+    const bf=await api('/api/messages-by-flow');renderFlowChart(bf);
+    const hr=await api('/api/hourly-distribution');renderHourly(hr);
+    const fl=await api('/api/flows');renderFlows(fl);
+    const ck=await api('/api/checkouts?limit=40');renderCheckouts(ck);
+    const ms=await api('/api/messages?limit=60');renderMessages(ms);
+  }catch(err){console.error('Dashboard error:',err);document.getElementById('kpiGrid').innerHTML='<div style="padding:20px;color:#dc2626">Erreur de chargement: '+err.message+'</div>';}
 }
 
 function kpi(l,v,sub,c){return '<div class="kpi '+c+'"><div class="label">'+l+'</div><div class="value">'+v+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'}
@@ -411,7 +414,7 @@ function renderHourly(data){
     const c=active?'var(--teal)':'#e2e8f0';
     h+='<div class="bar"><div class="bar-value">'+(hrs[i]||'')+'</div><div class="bar-fill" style="height:'+Math.max(p,2)+'%;background:'+c+';opacity:'+(active?1:0.5)+'"></div><div class="bar-label">'+i+'h</div></div>';
   }
-  h+='</div><div style="font-size:10px;color:var(--text-secondary);margin-top:8px">Fenetre d\'envoi : 9h - 21h (Europe/Paris)</div>';
+  h+='</div><div style="font-size:10px;color:var(--text-secondary);margin-top:8px">Plage horaire : 9h - 21h (Europe/Paris)</div>';
   document.getElementById('hourlyChart').innerHTML=h;
 }
 
@@ -431,7 +434,7 @@ function renderCheckouts(data){
   const tb=document.querySelector('#checkoutsTable tbody');
   tb.innerHTML=data.map(c=>{
     let items='-';
-    try{const p=JSON.parse(c.line_items||'[]');items=p.map(i=>i.title+(i.quantity>1?' x'+i.quantity:'')).join(', ')}catch(e){}
+    try{const p=typeof c.line_items==='string'?JSON.parse(c.line_items||'[]'):(c.line_items||[]);items=p.map(i=>i.title+(i.quantity>1?' x'+i.quantity:'')).join(', ')||'-'}catch(e){}
     return '<tr><td>'+fmtDate(c.created_at)+'</td><td style="font-weight:500">'+(c.customer_name||'-')+'</td><td>'+(c.email||'-')+'</td><td>'+(c.phone||'-')+'</td><td style="font-weight:600">'+(c.total_price||'0')+' EUR</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">'+items+'</td><td>'+(c.converted?badge('converted'):badge('abandoned'))+'</td></tr>';
   }).join('');
 }
