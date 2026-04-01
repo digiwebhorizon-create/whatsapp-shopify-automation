@@ -590,6 +590,26 @@ app.post('/api/create-templates', requireAuth, async (req, res) => {
   res.json(results);
 });
 
+// Force re-register webhooks with correct URL
+app.post('/api/fix-webhooks', requireAuth, async (req, res) => {
+  try {
+    const shops = db.getShops();
+    const results = [];
+    for (const shop of shops) {
+      await shopify.ensureWebhooks(shop.domain, shop.token);
+      // Verify
+      const existing = await shopify.apiCall(shop.domain, 'webhooks.json');
+      results.push({
+        shop: shop.domain,
+        webhooks: (existing.webhooks || []).map(w => ({ topic: w.topic, address: w.address }))
+      });
+    }
+    res.json({ success: true, results });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // Clear all data (debug)
 app.post('/api/clear', requireAuth, (req, res) => {
   db.clearAll();

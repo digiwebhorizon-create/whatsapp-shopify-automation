@@ -21,7 +21,10 @@ async function apiCall(shop, endpoint, method = 'GET', body = null) {
     const text = await response.text();
     throw new Error(`Shopify API ${response.status}: ${text}`);
   }
-  return response.json();
+  // DELETE returns empty body
+  if (method === 'DELETE') return { success: true };
+  const text = await response.text();
+  return text ? JSON.parse(text) : {};
 }
 
 // Get recent orders for a customer
