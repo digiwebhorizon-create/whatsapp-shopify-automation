@@ -29,26 +29,41 @@ function getDashboardHTML(serverUrl) {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Poppins', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
+/* Login overlay */
+.login-overlay {
+  position: fixed; inset: 0; background: linear-gradient(135deg, var(--teal-dark) 0%, var(--teal) 50%, var(--teal-light) 100%);
+  z-index: 500; display: flex; align-items: center; justify-content: center;
+}
+.login-overlay.hidden { display: none; }
+.login-box {
+  background: var(--card); border-radius: 16px; padding: 40px; width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center;
+}
+.login-box h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.login-box .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.login-box input {
+  width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px;
+  font-family: 'Poppins', sans-serif; font-size: 14px; margin-bottom: 12px;
+}
+.login-box input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,90,92,0.1); }
+.login-box .login-btn {
+  width: 100%; padding: 12px; background: var(--teal); color: #fff; border: none;
+  border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 14px;
+  font-weight: 600; cursor: pointer; transition: background 0.2s;
+}
+.login-box .login-btn:hover { background: var(--teal-light); }
+.login-box .login-error { color: var(--danger); font-size: 12px; margin-top: 8px; min-height: 18px; }
+
 /* Header */
 .header {
   background: linear-gradient(135deg, var(--teal-dark) 0%, var(--teal) 50%, var(--teal-light) 100%);
-  padding: 0 32px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 12px rgba(13,90,92,0.15);
+  padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(13,90,92,0.15);
 }
 .header .logo { display: flex; align-items: center; gap: 12px; }
 .header .logo-icon {
-  width: 32px; height: 32px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
+  width: 32px; height: 32px; background: rgba(255,255,255,0.15); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
 }
 .header h1 { font-size: 17px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
 .header .right { display: flex; align-items: center; gap: 16px; }
@@ -63,8 +78,7 @@ body { font-family: 'Poppins', -apple-system, sans-serif; background: var(--bg);
   background: rgba(255,255,255,0.15); color: #fff;
   border: 1px solid rgba(255,255,255,0.2);
   padding: 6px 14px; border-radius: 6px; font-weight: 500;
-  cursor: pointer; font-size: 12px; font-family: 'Poppins', sans-serif;
-  transition: all 0.2s;
+  cursor: pointer; font-size: 12px; font-family: 'Poppins', sans-serif; transition: all 0.2s;
 }
 .refresh-btn:hover { background: rgba(255,255,255,0.25); }
 .last-refresh { font-size: 11px; color: rgba(255,255,255,0.5); }
@@ -72,8 +86,21 @@ body { font-family: 'Poppins', -apple-system, sans-serif; background: var(--bg);
 /* Container */
 .container { max-width: 1360px; margin: 0 auto; padding: 24px; }
 
+/* Date filter bar */
+.date-filter-bar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px;
+}
+.date-filter-bar label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.date-filter-bar select {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: 'Poppins', sans-serif; font-size: 13px; background: #fff; cursor: pointer;
+}
+.date-filter-bar select:focus { outline: none; border-color: var(--teal); }
+.date-filter-bar .date-range-info { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+
 /* KPI Grid */
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 24px; }
 .kpi {
   background: var(--card); border-radius: 12px; padding: 18px 20px;
   border: 1px solid var(--border); transition: transform 0.15s, box-shadow 0.15s;
@@ -186,6 +213,9 @@ tr:hover td { background: #f8fafb; }
 .btn-secondary:hover { background: #e8ecf0; }
 .btn-magenta { background: var(--magenta); color: #fff; }
 .btn-magenta:hover { background: var(--magenta-light); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Warning banner */
@@ -197,17 +227,46 @@ tr:hover td { background: #f8fafb; }
 .status-msg.ok { color: var(--success); }
 .status-msg.err { color: var(--danger); }
 
-@media (max-width: 1024px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+/* Contacts */
+.contacts-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.contacts-toolbar select {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: 'Poppins', sans-serif; font-size: 12px; background: #fff;
+}
+.tag-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #eff6ff; color: var(--teal); margin: 0 2px; }
+
+/* Form styles */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 13px; }
+.form-group input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,90,92,0.1); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+@media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 768px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .chart-grid { grid-template-columns: 1fr; }
   .header { padding: 0 16px; }
   .container { padding: 16px; }
   .modal { width: 96%; }
+  .form-row { grid-template-columns: 1fr; }
+  .date-filter-bar { flex-wrap: wrap; }
 }
 </style>
 </head>
 <body>
+
+<!-- Login overlay -->
+<div class="login-overlay hidden" id="loginOverlay">
+  <div class="login-box">
+    <div style="font-size:32px;margin-bottom:12px">LB</div>
+    <h2>Le Bourlingueur</h2>
+    <div class="subtitle">Marketing WhatsApp — Acces Dashboard</div>
+    <input type="password" id="loginPassword" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Se connecter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
 
 <div class="header">
   <div class="logo">
@@ -222,7 +281,31 @@ tr:hover td { background: #f8fafb; }
 </div>
 
 <div class="container">
+  <!-- Date filter -->
+  <div class="date-filter-bar">
+    <label>Periode :</label>
+    <select id="dateRange" onchange="onDateRangeChange()">
+      <option value="all">Tout</option>
+      <option value="today">Aujourd'hui</option>
+      <option value="7d" selected>7 derniers jours</option>
+      <option value="30d">30 derniers jours</option>
+      <option value="90d">90 derniers jours</option>
+    </select>
+    <span class="date-range-info" id="dateRangeInfo"></span>
+  </div>
+
   <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- Couts & ROI -->
+  <div class="card" style="border-left:4px solid var(--magenta)">
+    <div class="card-header">
+      <h2>&#128176; Couts & ROI WhatsApp</h2>
+      <span style="font-size:11px;color:var(--text-secondary)" id="costPerMsg"></span>
+    </div>
+    <div class="card-body" id="costCard">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
+    </div>
+  </div>
 
   <div class="chart-grid">
     <div class="card">
@@ -232,6 +315,15 @@ tr:hover td { background: #f8fafb; }
     <div class="card">
       <div class="card-header"><h2>Heures d envoi</h2></div>
       <div class="card-body" id="hourlyChart"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>&#9878; A/B Test — Images produit (Panier abandonne)</h2>
+    </div>
+    <div class="card-body" id="abTestResults">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement des resultats A/B...</div>
     </div>
   </div>
 
@@ -261,6 +353,7 @@ tr:hover td { background: #f8fafb; }
       <div class="tabs">
         <button class="tab active" onclick="switchTab('checkouts',this)">Paniers</button>
         <button class="tab" onclick="switchTab('messages',this)">Messages</button>
+        <button class="tab" onclick="switchTab('contacts',this)">Contacts</button>
       </div>
       <div class="tab-content active" id="tab-checkouts">
         <table id="checkoutsTable">
@@ -274,11 +367,24 @@ tr:hover td { background: #f8fafb; }
           <tbody></tbody>
         </table>
       </div>
+      <div class="tab-content" id="tab-contacts">
+        <div class="contacts-toolbar">
+          <select id="segmentFilter" onchange="loadContacts()">
+            <option value="all">Tous les contacts</option>
+          </select>
+          <button class="btn btn-primary" onclick="openAddContactModal()">+ Ajouter un contact</button>
+          <span style="font-size:12px;color:var(--text-secondary)" id="contactCount"></span>
+        </div>
+        <table id="contactsTable">
+          <thead><tr><th>Prenom</th><th>Nom</th><th>Telephone</th><th>Email</th><th>Tags</th><th>Source</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Modal templates -->
+<!-- Modal -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-header">
@@ -293,16 +399,90 @@ tr:hover td { background: #f8fafb; }
 const SERVER='';
 let allTemplates=[];
 let isTestMode=false;
+let waCost=0.08;
+let needsAuth=false;
 
-async function api(p){return(await fetch(SERVER+p)).json()}
+// ─── Date range ──────────────────────────────────
+function getDateRange(){
+  const sel=document.getElementById('dateRange').value;
+  if(sel==='all') return {};
+  const to=new Date();
+  let from=new Date();
+  if(sel==='today'){from.setHours(0,0,0,0);}
+  else if(sel==='7d'){from.setDate(from.getDate()-7);}
+  else if(sel==='30d'){from.setDate(from.getDate()-30);}
+  else if(sel==='90d'){from.setDate(from.getDate()-90);}
+  return {from:from.toISOString().split('.')[0],to:to.toISOString().split('.')[0]};
+}
+function dateParams(){
+  const r=getDateRange();
+  const p=new URLSearchParams();
+  if(r.from)p.set('from',r.from);
+  if(r.to)p.set('to',r.to);
+  const s=p.toString();
+  return s?'&'+s:'';
+}
+function onDateRangeChange(){
+  const r=getDateRange();
+  const info=document.getElementById('dateRangeInfo');
+  if(r.from){
+    const fd=new Date(r.from);
+    info.textContent=fd.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})+' — Maintenant';
+  }else{
+    info.textContent='Toutes les donnees';
+  }
+  loadAll();
+}
+
+// ─── Auth ────────────────────────────────────────
+async function checkAuth(){
+  try{
+    const res=await fetch(SERVER+'/api/stats');
+    if(res.status===401){showLogin();return false;}
+    return true;
+  }catch(e){return true;}
+}
+function showLogin(){
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  needsAuth=true;
+  setTimeout(()=>document.getElementById('loginPassword').focus(),100);
+}
+async function doLogin(){
+  const pw=document.getElementById('loginPassword').value;
+  const err=document.getElementById('loginError');
+  try{
+    const res=await fetch(SERVER+'/api/login',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:pw})
+    });
+    if(res.ok){
+      document.getElementById('loginOverlay').classList.add('hidden');
+      needsAuth=false;
+      loadAll();
+    }else{
+      err.textContent='Mot de passe incorrect';
+    }
+  }catch(e){err.textContent='Erreur de connexion';}
+}
+
+// ─── Utilities ───────────────────────────────────
+async function api(p){
+  const sep=p.includes('?')?'&':'?';
+  const url=SERVER+p+(p.includes('from=')?'':sep.substring(0,0));
+  const res=await fetch(SERVER+p);
+  if(res.status===401){showLogin();throw new Error('Auth required');}
+  return res.json();
+}
 function fmtDate(d){if(!d)return'-';const dt=new Date(d.replace(' ','T')+(d.includes('Z')?'':'Z'));return dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function badge(s){const labels={sent:'Envoye',queued:'En attente',failed:'Echoue',cancelled:'Annule',converted:'Recupere',abandoned:'Abandonne',APPROVED:'Approuve',PENDING:'En review',REJECTED:'Rejete'};return '<span class="badge '+s+'">'+(labels[s]||s)+'</span>'}
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function switchTab(name,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
+  if(name==='contacts') loadContacts();
 }
 
 const FLOW_TEMPLATES={
@@ -311,42 +491,130 @@ const FLOW_TEMPLATES={
   winback:['winback_news','winback_offer_15','winback_offer_20']
 };
 
+// ─── Main load ───────────────────────────────────
 async function loadAll(){
   try{
     document.getElementById('lastRefresh').textContent=new Date().toLocaleTimeString('fr-FR');
-    const s=await api('/api/stats');
+    const dp=dateParams();
+    const s=await api('/api/stats?_=1'+dp);
     isTestMode=!!s.test_mode;
+    waCost=s.wa_cost||0.08;
     const rev=(s.revenue_recovered||0);
+    const totalCost=((s.messages_sent||0)*waCost);
+    const roi=totalCost>0?((rev/totalCost)).toFixed(1):'--';
     document.getElementById('kpiGrid').innerHTML=[
       kpi('Messages envoyes',s.messages_sent||0,'','teal'),
-      kpi('En attente',s.messages_queued||0,'','teal'),
-      kpi('Echoues',s.messages_failed||0,'','red'),
-      kpi('Annules',s.messages_cancelled||0,'Conversion client','orange'),
-      kpi('Paniers detectes',s.total_checkouts||0,'dont '+(s.abandoned_checkouts||0)+' en cours','teal'),
-      kpi('Paniers recuperes',s.recovered_checkouts||0,(s.recovery_rate||0)+'% de conversion','green'),
-      kpi('Revenu recupere',rev.toFixed(0)+' EUR','','magenta'),
-      kpi('Clients suivis',s.total_customers||0,(s.total_optins||0)+' opt-ins','teal'),
+      kpi('En attente / Echoues',(s.messages_queued||0)+' / '+(s.messages_failed||0),'','orange'),
+      kpi('Paniers recuperes',s.recovered_checkouts||0,(s.recovery_rate||0)+'% sur '+(s.total_checkouts||0)+' detectes','green'),
+      kpi('CA recupere',rev.toFixed(0)+' EUR','ROI: x'+roi,'magenta'),
+      kpi('Cout WhatsApp',totalCost.toFixed(2)+' EUR',(waCost*100).toFixed(1)+' cts/msg — '+(s.messages_sent||0)+' envois','red'),
     ].join('');
-    const bf=await api('/api/messages-by-flow');renderFlowChart(bf);
-    const hr=await api('/api/hourly-distribution');renderHourly(hr);
+    const bf=await api('/api/messages-by-flow?_=1'+dp);renderFlowChart(bf);
+    const hr=await api('/api/hourly-distribution?_=1'+dp);renderHourly(hr);
     const fl=await api('/api/flows');renderFlows(fl);
-    const ck=await api('/api/checkouts?limit=40');renderCheckouts(ck);
-    const ms=await api('/api/messages?limit=60');renderMessages(ms);
+    const ck=await api('/api/checkouts?limit=40'+dp);renderCheckouts(ck);
+    const ms=await api('/api/messages?limit=60'+dp);renderMessages(ms);
     try{const t=await api('/api/templates');if(Array.isArray(t))allTemplates=t;}catch(e){}
-    try{const cp=await api('/api/campaigns');renderCampaigns(cp);}catch(e){}
-  }catch(err){console.error('Dashboard error:',err);document.getElementById('kpiGrid').innerHTML='<div style="padding:20px;color:#dc2626">Erreur de chargement: '+err.message+'</div>';}
+    let campaigns=[];
+    try{campaigns=await api('/api/campaigns');renderCampaigns(campaigns);}catch(e){}
+    try{const ab=await api('/api/ab-results');renderABTest(ab);}catch(e){}
+    // Render cost card with all data
+    renderCostCard(s, bf, campaigns);
+  }catch(err){
+    if(err.message==='Auth required')return;
+    console.error('Dashboard error:',err);
+    document.getElementById('kpiGrid').innerHTML='<div style="padding:20px;color:#dc2626">Erreur de chargement: '+err.message+'</div>';
+  }
 }
 
 function kpi(l,v,sub,c){return '<div class="kpi '+c+'"><div class="label">'+l+'</div><div class="value">'+v+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'}
+
+// ─── Couts & ROI card ───────────────────────────
+function renderCostCard(stats, flowData, campaigns){
+  const el=document.getElementById('costCard');
+  document.getElementById('costPerMsg').textContent=(waCost*100).toFixed(1)+' centimes / message (Meta WhatsApp FR)';
+
+  // Costs by flow
+  const flows={};
+  flowData.forEach(r=>{
+    if(!flows[r.flow])flows[r.flow]={sent:0,total:0};
+    flows[r.flow].total+=r.count;
+    if(r.status==='sent')flows[r.flow].sent+=r.count;
+  });
+  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback'};
+
+  // Campaign costs
+  let campaignCostTotal=0;
+  let campaignSentTotal=0;
+  (campaigns||[]).forEach(c=>{campaignCostTotal+=c.sent_count*waCost;campaignSentTotal+=c.sent_count;});
+
+  // Totals
+  const totalSent=stats.messages_sent||0;
+  const totalCost=totalSent*waCost;
+  const rev=stats.revenue_recovered||0;
+  const roi=totalCost>0?(rev/totalCost):0;
+  const costPerConversion=(stats.recovered_checkouts||0)>0?(totalCost/(stats.recovered_checkouts||1)):0;
+  const profit=rev-totalCost;
+
+  let h='';
+
+  // Big ROI numbers
+  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">';
+  h+='<div style="text-align:center;padding:16px;background:#fef2f2;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Cout total</div><div style="font-size:26px;font-weight:700;color:var(--danger)">'+totalCost.toFixed(2)+'<span style="font-size:14px"> EUR</span></div></div>';
+  h+='<div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">CA recupere</div><div style="font-size:26px;font-weight:700;color:var(--success)">'+rev.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
+  h+='<div style="text-align:center;padding:16px;background:'+(profit>=0?'#f0fdf4':'#fef2f2')+';border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Profit net</div><div style="font-size:26px;font-weight:700;color:'+(profit>=0?'var(--success)':'var(--danger)')+'">'+profit.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
+  h+='<div style="text-align:center;padding:16px;background:#fdf4ff;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">ROI</div><div style="font-size:26px;font-weight:700;color:var(--magenta)">x'+roi.toFixed(1)+'</div></div>';
+  h+='</div>';
+
+  // Detail by flow
+  h+='<table><thead><tr><th>Source</th><th>Messages envoyes</th><th>Cout</th><th>% du total</th></tr></thead><tbody>';
+  let flowCostTotal=0;
+  for(const[k,d]of Object.entries(flows)){
+    const cost=d.sent*waCost;
+    flowCostTotal+=cost;
+    const pct=totalCost>0?Math.round(cost/totalCost*100):0;
+    h+='<tr><td style="font-weight:600">'+(flowNames[k]||k)+'</td><td style="text-align:center">'+d.sent+'</td><td style="font-weight:700;color:var(--danger)">'+cost.toFixed(2)+' EUR</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#e8ecf0;border-radius:3px;height:8px;width:80px;overflow:hidden"><div style="background:var(--danger);height:100%;width:'+pct+'%"></div></div>'+pct+'%</div></td></tr>';
+  }
+
+  // Campaigns row
+  if(campaigns&&campaigns.length>0){
+    const campPct=totalCost>0?Math.round(campaignCostTotal/totalCost*100):0;
+    h+='<tr style="border-top:2px solid var(--border)"><td style="font-weight:600">Campagnes push ('+campaigns.length+')</td><td style="text-align:center">'+campaignSentTotal+'</td><td style="font-weight:700;color:var(--danger)">'+campaignCostTotal.toFixed(2)+' EUR</td><td><div style="display:flex;align-items:center;gap:6px"><div style="background:#e8ecf0;border-radius:3px;height:8px;width:80px;overflow:hidden"><div style="background:var(--magenta);height:100%;width:'+campPct+'%"></div></div>'+campPct+'%</div></td></tr>';
+  }
+
+  // Total row
+  h+='<tr style="background:#f8fafb;border-top:2px solid var(--teal)"><td style="font-weight:700">TOTAL</td><td style="text-align:center;font-weight:700">'+totalSent+'</td><td style="font-weight:700;color:var(--danger);font-size:15px">'+totalCost.toFixed(2)+' EUR</td><td></td></tr>';
+  h+='</tbody></table>';
+
+  // Cost per conversion
+  if(stats.recovered_checkouts>0){
+    h+='<div style="margin-top:14px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">Cout par conversion : <strong>'+costPerConversion.toFixed(2)+' EUR</strong> — pour '+stats.recovered_checkouts+' panier'+(stats.recovered_checkouts>1?'s':'')+' recupere'+(stats.recovered_checkouts>1?'s':'')+'</div>';
+  }
+
+  // Campaign detail if any
+  if(campaigns&&campaigns.length>0){
+    h+='<div style="margin-top:16px"><div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">Detail par campagne</div>';
+    h+='<table><thead><tr><th>Campagne</th><th>Template</th><th>Envoyes</th><th>Cout</th><th>Statut</th></tr></thead><tbody>';
+    campaigns.forEach(c=>{
+      const cCost=(c.sent_count*waCost).toFixed(2);
+      const st={draft:'En attente',sending:'Envoi...',sent:'Termine',completed:'Termine',cancelled:'Annule'};
+      h+='<tr><td style="font-weight:600">'+escHtml(c.name)+'</td><td style="font-size:12px">'+escHtml(c.template)+'</td><td style="text-align:center">'+c.sent_count+' / '+c.target_count+'</td><td style="font-weight:700;color:var(--danger)">'+cCost+' EUR</td><td>'+(st[c.status]||c.status)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+
+  el.innerHTML=h;
+}
 
 function renderFlowChart(data){
   const f={};
   data.forEach(r=>{if(!f[r.flow])f[r.flow]={sent:0,queued:0,failed:0,cancelled:0};f[r.flow][r.status]=r.count});
   const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback'};
-  let h='<table><thead><tr><th>Flow</th><th>Envoyes</th><th>Attente</th><th>Echoues</th><th>Annules</th><th>Total</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Flow</th><th>Envoyes</th><th>Attente</th><th>Echoues</th><th>Annules</th><th>Total</th><th>Cout</th></tr></thead><tbody>';
   for(const[k,d]of Object.entries(f)){
     const t=d.sent+d.queued+d.failed+d.cancelled;
-    h+='<tr><td style="font-weight:600">'+(names[k]||k)+'</td><td>'+badge('sent')+' '+d.sent+'</td><td>'+badge('queued')+' '+d.queued+'</td><td>'+badge('failed')+' '+d.failed+'</td><td>'+badge('cancelled')+' '+d.cancelled+'</td><td style="font-weight:700">'+t+'</td></tr>';
+    const cost=(d.sent*waCost).toFixed(2);
+    h+='<tr><td style="font-weight:600">'+(names[k]||k)+'</td><td>'+badge('sent')+' '+d.sent+'</td><td>'+badge('queued')+' '+d.queued+'</td><td>'+badge('failed')+' '+d.failed+'</td><td>'+badge('cancelled')+' '+d.cancelled+'</td><td style="font-weight:700">'+t+'</td><td style="font-weight:600;color:var(--danger)">'+cost+' EUR</td></tr>';
   }
   h+='</tbody></table>';
   if(Object.keys(f).length===0) h='<div style="color:var(--text-secondary);font-size:13px;padding:10px">Aucun message pour le moment</div>';
@@ -372,7 +640,7 @@ function renderFlows(flows){
   const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation'};
   const d=isTestMode
     ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat'}
-    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+5 apres livraison',winback:'Envoi a J+30, J+60, J+90 sans achat'};
+    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+10 apres livraison (delai reception)',winback:'Envoi a J+30, J+60, J+90 sans achat'};
   const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;'};
   let h='';
   flows.forEach(f=>{
@@ -443,8 +711,6 @@ function openFlowModal(flowName){
   document.getElementById('modalOverlay').classList.add('open');
 }
 
-function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-
 function toggleEdit(idx){
   const view=document.getElementById('tpl-view-'+idx);
   const edit=document.getElementById('tpl-edit-'+idx);
@@ -494,6 +760,78 @@ async function saveTemplate(templateId,idx,templateName){
   saveBtn.disabled=false;
 }
 
+// ─── A/B Test results ───────────────────────────
+function renderABTest(data){
+  const el=document.getElementById('abTestResults');
+  const a=data.with_images||{sent:0,converted:0,revenue:0,conversion_rate:0};
+  const b=data.no_images||{sent:0,converted:0,revenue:0,conversion_rate:0};
+  const attr=data.attribution||{total_wa_clicks:0,total_sent:0,total_converted:0,total_revenue:0,click_rate:0};
+  const total=a.sent+b.sent;
+
+  if(total===0){
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:10px">Pas encore de donnees — le test A/B commence automatiquement avec les prochains paniers abandonnes. 50% recevront les images produit, 50% uniquement le template texte.</div>';
+    return;
+  }
+
+  let winner='';
+  if(a.sent>=250&&b.sent>=250){
+    if(a.conversion_rate>b.conversion_rate) winner='with_images';
+    else if(b.conversion_rate>a.conversion_rate) winner='no_images';
+    else winner='tie';
+  }
+
+  // Attribution summary
+  let h='<div style="background:#f8fafb;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px">';
+  h+='<div><span style="color:var(--text-secondary)">Clics WhatsApp :</span> <strong>'+attr.total_wa_clicks+'</strong></div>';
+  h+='<div><span style="color:var(--text-secondary)">Taux de clic :</span> <strong>'+attr.click_rate+'%</strong></div>';
+  h+='<div><span style="color:var(--text-secondary)">Conversions totales :</span> <strong style="color:var(--success)">'+attr.total_converted+'</strong></div>';
+  h+='<div><span style="color:var(--text-secondary)">Revenu total :</span> <strong style="color:var(--magenta)">'+attr.total_revenue.toFixed(0)+' EUR</strong></div>';
+  h+='</div>';
+
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+
+  // Variant A
+  const aWin=winner==='with_images';
+  h+='<div style="border:2px solid '+(aWin?'var(--success)':'var(--border)')+';border-radius:10px;padding:16px'+(aWin?';background:#f0fdf4':'')+'">';
+  h+='<div style="font-weight:700;font-size:14px;margin-bottom:8px">&#128247; Variante A : Avec images produit</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">';
+  h+='<div>Envoyes : <strong>'+a.sent+'</strong></div>';
+  h+='<div>Convertis : <strong style="color:var(--success)">'+a.converted+'</strong></div>';
+  h+='<div>Taux conversion : <strong style="font-size:18px;color:'+(aWin?'var(--success)':'var(--text)')+'">'+a.conversion_rate+'%</strong></div>';
+  h+='<div>Revenu : <strong>'+a.revenue.toFixed(0)+' EUR</strong></div>';
+  h+='</div>';
+  if(aWin) h+='<div style="margin-top:8px;color:var(--success);font-weight:700;font-size:12px">&#127942; GAGNANT</div>';
+  h+='</div>';
+
+  // Variant B
+  const bWin=winner==='no_images';
+  h+='<div style="border:2px solid '+(bWin?'var(--success)':'var(--border)')+';border-radius:10px;padding:16px'+(bWin?';background:#f0fdf4':'')+'">';
+  h+='<div style="font-weight:700;font-size:14px;margin-bottom:8px">&#128172; Variante B : Template seul (sans images)</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">';
+  h+='<div>Envoyes : <strong>'+b.sent+'</strong></div>';
+  h+='<div>Convertis : <strong style="color:var(--success)">'+b.converted+'</strong></div>';
+  h+='<div>Taux conversion : <strong style="font-size:18px;color:'+(bWin?'var(--success)':'var(--text)')+'">'+b.conversion_rate+'%</strong></div>';
+  h+='<div>Revenu : <strong>'+b.revenue.toFixed(0)+' EUR</strong></div>';
+  h+='</div>';
+  if(bWin) h+='<div style="margin-top:8px;color:var(--success);font-weight:700;font-size:12px">&#127942; GAGNANT</div>';
+  h+='</div>';
+
+  h+='</div>';
+
+  if(total<500){
+    const pct=Math.round(total/500*100);
+    h+='<div style="margin-top:14px"><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Progression : '+total+' / 500 envois (250 par variante)</div>';
+    h+='<div style="background:#e8ecf0;border-radius:4px;height:6px;overflow:hidden"><div style="background:var(--teal);height:100%;width:'+pct+'%;border-radius:4px;transition:width 0.5s"></div></div></div>';
+  }else if(winner==='tie'){
+    h+='<div style="margin-top:12px;font-size:12px;color:var(--warning);text-align:center;font-weight:600">Egalite — continuez le test pour plus de donnees</div>';
+  }
+
+  h+='<div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">&#128279; Attribution : chaque lien WhatsApp contient un UTM (utm_source=whatsapp). Les clics sur les liens sont trackes pour mesurer le taux de clic et attribuer les conversions.</div>';
+
+  el.innerHTML=h;
+}
+
+// ─── Data tables ────────────────────────────────
 function renderCheckouts(data){
   const tb=document.querySelector('#checkoutsTable tbody');
   if(!data||data.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-secondary)">Aucun panier detecte</td></tr>';return;}
@@ -510,6 +848,132 @@ function renderMessages(data){
   tb.innerHTML=data.map(m=>'<tr><td>'+fmtDate(m.created_at)+'</td><td style="font-weight:500;color:var(--teal)">'+fmtDate(m.scheduled_at)+'</td><td>'+m.phone+'</td><td style="font-weight:500">'+m.flow+'</td><td style="font-size:12px">'+m.template+'</td><td>'+badge(m.status)+'</td><td>'+fmtDate(m.sent_at)+'</td><td style="font-size:11px;color:var(--danger);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.error||'')+'</td></tr>').join('');
 }
 
+// ─── Contacts ───────────────────────────────────
+async function loadContacts(){
+  const seg=document.getElementById('segmentFilter').value;
+  try{
+    const contacts=await api('/api/contacts?segment='+seg);
+    renderContacts(contacts);
+    document.getElementById('contactCount').textContent=contacts.length+' contact'+(contacts.length!==1?'s':'');
+  }catch(e){
+    if(e.message!=='Auth required') document.querySelector('#contactsTable tbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--danger)">Erreur: '+e.message+'</td></tr>';
+  }
+  // Load segments for filter
+  try{
+    const seg_data=await api('/api/segments');
+    const sel=document.getElementById('segmentFilter');
+    const current=sel.value;
+    let opts='';
+    seg_data.segments.forEach(s=>{
+      opts+='<option value="'+s.id+'"'+(s.id===current?' selected':'')+'>'+escHtml(s.name)+' ('+s.count+')</option>';
+    });
+    if(seg_data.tags&&seg_data.tags.length>0){
+      seg_data.tags.forEach(t=>{
+        const v='tag:'+t;
+        opts+='<option value="'+v+'"'+(v===current?' selected':'')+'>Tag: '+escHtml(t)+'</option>';
+      });
+    }
+    sel.innerHTML=opts;
+  }catch(e){}
+}
+
+function renderContacts(data){
+  const tb=document.querySelector('#contactsTable tbody');
+  if(!data||data.length===0){
+    tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">Aucun contact — ajoutez-en via le bouton ci-dessus</td></tr>';
+    return;
+  }
+  tb.innerHTML=data.map(c=>{
+    const tags=(c.tags||'').split(',').filter(t=>t.trim()).map(t=>'<span class="tag-badge">'+escHtml(t.trim())+'</span>').join(' ');
+    const src=c.source==='shopify'?'<span style="color:var(--success);font-weight:600">Shopify</span>':'<span style="color:var(--teal)">Manuel</span>';
+    const isManual=c.source!=='shopify';
+    const actions=isManual
+      ?'<button class="btn btn-secondary btn-sm" onclick="openEditContactModal('+c.id+',\\''+escHtml(c.first_name||'')+'\\',\\''+escHtml(c.last_name||'')+'\\',\\''+escHtml(c.phone||'')+'\\',\\''+escHtml(c.email||'')+'\\',\\''+escHtml(c.tags||'')+'\\')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteContact('+c.id+')">X</button>'
+      :'<span style="font-size:11px;color:var(--text-secondary)">Auto</span>';
+    return '<tr><td style="font-weight:500">'+(c.first_name||'-')+'</td><td>'+(c.last_name||'-')+'</td><td style="font-weight:500">'+(c.phone||'-')+'</td><td>'+(c.email||'-')+'</td><td>'+tags+'</td><td>'+src+'</td><td>'+fmtDate(c.created_at)+'</td><td>'+actions+'</td></tr>';
+  }).join('');
+}
+
+function openAddContactModal(){
+  document.getElementById('modalTitle').textContent='Ajouter un contact';
+  let h='<div class="form-row"><div class="form-group"><label>Prenom</label><input type="text" id="ctFirstName" placeholder="Jean"></div>';
+  h+='<div class="form-group"><label>Nom</label><input type="text" id="ctLastName" placeholder="Dupont"></div></div>';
+  h+='<div class="form-group"><label>Telephone *</label><input type="tel" id="ctPhone" placeholder="+33612345678 ou 0612345678"></div>';
+  h+='<div class="form-group"><label>Email</label><input type="email" id="ctEmail" placeholder="jean@example.com"></div>';
+  h+='<div class="form-group"><label>Tags (separes par des virgules)</label><input type="text" id="ctTags" placeholder="vip, prospect, newsletter"></div>';
+  h+='<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="saveNewContact()">Ajouter</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="contactFormStatus"></span></div>';
+  document.getElementById('modalBody').innerHTML=h;
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('ctFirstName').focus(),100);
+}
+
+function openEditContactModal(id,fn,ln,ph,em,tg){
+  document.getElementById('modalTitle').textContent='Modifier le contact';
+  let h='<div class="form-row"><div class="form-group"><label>Prenom</label><input type="text" id="ctFirstName" value="'+escHtml(fn)+'"></div>';
+  h+='<div class="form-group"><label>Nom</label><input type="text" id="ctLastName" value="'+escHtml(ln)+'"></div></div>';
+  h+='<div class="form-group"><label>Telephone *</label><input type="tel" id="ctPhone" value="'+escHtml(ph)+'"></div>';
+  h+='<div class="form-group"><label>Email</label><input type="email" id="ctEmail" value="'+escHtml(em)+'"></div>';
+  h+='<div class="form-group"><label>Tags</label><input type="text" id="ctTags" value="'+escHtml(tg)+'"></div>';
+  h+='<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="updateContact('+id+')">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="contactFormStatus"></span></div>';
+  document.getElementById('modalBody').innerHTML=h;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function saveNewContact(){
+  const status=document.getElementById('contactFormStatus');
+  const data={
+    first_name:document.getElementById('ctFirstName').value.trim(),
+    last_name:document.getElementById('ctLastName').value.trim(),
+    phone:document.getElementById('ctPhone').value.trim(),
+    email:document.getElementById('ctEmail').value.trim(),
+    tags:document.getElementById('ctTags').value.trim()
+  };
+  if(!data.phone){status.className='status-msg err';status.textContent='Le telephone est obligatoire';return;}
+  try{
+    const res=await fetch(SERVER+'/api/contacts',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)
+    });
+    const r=await res.json();
+    if(r.success){
+      status.className='status-msg ok';status.textContent='Contact ajoute !';
+      setTimeout(()=>{closeModal();loadContacts();},800);
+    }else{
+      status.className='status-msg err';status.textContent='Erreur : '+(r.error||'echec');
+    }
+  }catch(e){status.className='status-msg err';status.textContent='Erreur : '+e.message;}
+}
+
+async function updateContact(id){
+  const status=document.getElementById('contactFormStatus');
+  const data={
+    first_name:document.getElementById('ctFirstName').value.trim(),
+    last_name:document.getElementById('ctLastName').value.trim(),
+    phone:document.getElementById('ctPhone').value.trim(),
+    email:document.getElementById('ctEmail').value.trim(),
+    tags:document.getElementById('ctTags').value.trim()
+  };
+  try{
+    const res=await fetch(SERVER+'/api/contacts/'+id,{
+      method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)
+    });
+    const r=await res.json();
+    if(r.success){
+      status.className='status-msg ok';status.textContent='Modifie !';
+      setTimeout(()=>{closeModal();loadContacts();},800);
+    }else{
+      status.className='status-msg err';status.textContent='Erreur : '+(r.error||'echec');
+    }
+  }catch(e){status.className='status-msg err';status.textContent='Erreur : '+e.message;}
+}
+
+async function deleteContact(id){
+  if(!confirm('Supprimer ce contact ?'))return;
+  try{
+    await fetch(SERVER+'/api/contacts/'+id,{method:'DELETE'});
+    loadContacts();
+  }catch(e){alert('Erreur: '+e.message);}
+}
+
 // ─── Campaigns push ─────────────────────────────
 function renderCampaigns(data){
   const el=document.getElementById('campaignsList');
@@ -517,13 +981,14 @@ function renderCampaigns(data){
     el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:10px">Aucune campagne — cliquez sur "+ Nouvelle campagne" pour commencer</div>';
     return;
   }
-  let h='<table><thead><tr><th>Date</th><th>Nom</th><th>Template</th><th>Cibles</th><th>Envoyes</th><th>Echecs</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Date</th><th>Nom</th><th>Template</th><th>Segment</th><th>Cibles</th><th>Envoyes</th><th>Echecs</th><th>Cout</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
   data.forEach(c=>{
     const statusMap={draft:'En attente',sending:'Envoi...',sent:'Termine',completed:'Termine',cancelled:'Annule'};
     const statusClass={draft:'queued',sending:'queued',sent:'sent',completed:'sent',cancelled:'cancelled'};
-    h+='<tr><td>'+fmtDate(c.created_at)+'</td><td style="font-weight:600">'+escHtml(c.name)+'</td><td style="font-size:12px">'+escHtml(c.template)+'</td><td style="text-align:center">'+c.target_count+'</td><td style="text-align:center;color:var(--success);font-weight:600">'+c.sent_count+'</td><td style="text-align:center;color:var(--danger)">'+c.failed_count+'</td><td>'+badge(statusClass[c.status]||c.status)+'</td>';
+    const cost=(c.sent_count*waCost).toFixed(2);
+    h+='<tr><td>'+fmtDate(c.created_at)+'</td><td style="font-weight:600">'+escHtml(c.name)+'</td><td style="font-size:12px">'+escHtml(c.template)+'</td><td style="font-size:12px">'+(c.target_filter||'all')+'</td><td style="text-align:center">'+c.target_count+'</td><td style="text-align:center;color:var(--success);font-weight:600">'+c.sent_count+'</td><td style="text-align:center;color:var(--danger)">'+c.failed_count+'</td><td style="font-weight:600;color:var(--danger)">'+cost+' EUR</td><td>'+badge(statusClass[c.status]||c.status)+'</td>';
     if(c.status==='sending'||c.status==='draft'){
-      h+='<td><button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="cancelCampaign('+c.id+')">Annuler</button></td>';
+      h+='<td><button class="btn btn-secondary btn-sm" onclick="cancelCampaign('+c.id+')">Annuler</button></td>';
     }else{
       h+='<td>-</td>';
     }
@@ -534,8 +999,9 @@ function renderCampaigns(data){
 }
 
 async function openCampaignModal(){
-  // Load customers count and templates
+  let segments=[];
   let customers=[];
+  try{segments=(await api('/api/segments')).segments||[];}catch(e){}
   try{customers=await api('/api/customers');}catch(e){}
 
   document.getElementById('modalTitle').textContent='Nouvelle campagne push';
@@ -545,27 +1011,49 @@ async function openCampaignModal(){
     tplOptions+='<option value="'+escHtml(t.name)+'">'+escHtml(t.name)+'</option>';
   });
 
-  let h='<div class="warning-banner">&#128227; <div><strong>Campagne push</strong> — Envoie un template Meta WhatsApp a tous vos clients avec un numero de telephone. Les messages passent par la queue et respectent la plage horaire 8h-21h.</div></div>';
+  let segOptions='';
+  segments.forEach(s=>{
+    segOptions+='<option value="'+s.id+'">'+escHtml(s.name)+' ('+s.count+')</option>';
+  });
 
-  h+='<div style="margin-bottom:16px"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px"><strong>'+customers.length+'</strong> clients avec numero de telephone</div>';
+  let h='<div class="warning-banner">&#128227; <div><strong>Campagne push</strong> — Envoie un template Meta WhatsApp aux contacts du segment choisi. Les messages passent par la queue et respectent la plage horaire 8h-21h.</div></div>';
 
-  h+='<div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Nom de la campagne</label><input type="text" id="campaignName" placeholder="Ex: Soldes printemps 2026" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:Poppins,sans-serif;font-size:13px"></div>';
+  h+='<div class="form-group"><label>Nom de la campagne</label><input type="text" id="campaignName" placeholder="Ex: Soldes printemps 2026"></div>';
 
-  h+='<div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Template Meta (approuve)</label><select id="campaignTemplate" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:Poppins,sans-serif;font-size:13px">';
+  h+='<div class="form-row"><div class="form-group"><label>Template Meta (approuve)</label><select id="campaignTemplate">';
   h+=tplOptions||'<option value="">Aucun template approuve</option>';
   h+='</select></div>';
 
-  h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px">&#9989; <strong>'+customers.length+' destinataires</strong> recevront ce message via la queue (plage 8h-21h)</div>';
+  h+='<div class="form-group"><label>Segment cible</label><select id="campaignSegment" onchange="updateCampaignCount()">';
+  h+=segOptions||'<option value="all">Tous</option>';
+  h+='</select></div></div>';
 
-  h+='<div style="display:flex;gap:8px"><button class="btn btn-magenta" onclick="sendCampaign()" id="sendCampaignBtn">Lancer la campagne</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="campaignStatus"></span></div></div>';
+  h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px" id="campaignInfo">&#9989; Selectionnez un segment pour voir le nombre de destinataires</div>';
+
+  h+='<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:12px;color:#991b1b;margin-bottom:16px" id="campaignCostInfo"></div>';
+
+  h+='<div style="display:flex;gap:8px"><button class="btn btn-magenta" onclick="sendCampaign()" id="sendCampaignBtn">Lancer la campagne</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="campaignStatus"></span></div>';
 
   document.getElementById('modalBody').innerHTML=h;
   document.getElementById('modalOverlay').classList.add('open');
+  updateCampaignCount();
+}
+
+async function updateCampaignCount(){
+  const seg=document.getElementById('campaignSegment').value;
+  try{
+    const contacts=await api('/api/contacts?segment='+seg);
+    const count=contacts.length;
+    const cost=(count*waCost).toFixed(2);
+    document.getElementById('campaignInfo').innerHTML='&#9989; <strong>'+count+' destinataire'+(count!==1?'s':'')+'</strong> dans ce segment';
+    document.getElementById('campaignCostInfo').innerHTML='&#128176; Cout estime : <strong>'+cost+' EUR</strong> ('+(waCost*100).toFixed(1)+' cts x '+count+' messages)';
+  }catch(e){}
 }
 
 async function sendCampaign(){
   const name=document.getElementById('campaignName').value.trim();
   const template=document.getElementById('campaignTemplate').value;
+  const segment=document.getElementById('campaignSegment').value;
   const status=document.getElementById('campaignStatus');
   const btn=document.getElementById('sendCampaignBtn');
 
@@ -580,7 +1068,7 @@ async function sendCampaign(){
     const res=await fetch(SERVER+'/api/campaigns',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name,template})
+      body:JSON.stringify({name,template,segment})
     });
     const data=await res.json();
     if(data.success){
@@ -606,7 +1094,14 @@ async function cancelCampaign(id){
   }catch(e){alert('Erreur: '+e.message);}
 }
 
-loadAll();
+// ─── Init ────────────────────────────────────────
+async function init(){
+  const ok=await checkAuth();
+  if(ok){
+    onDateRangeChange();
+  }
+}
+init();
 setInterval(loadAll,60000);
 </script>
 </body>

@@ -6,7 +6,7 @@ const shopify = require('./shopify');
 const TEST_MODE = process.env.TEST_MODE === 'true';
 const DELAYS = TEST_MODE
   ? { cart1: 1 * 60 * 1000, cart2: 2 * 60 * 1000, cart3: 3 * 60 * 1000, upsell: 5 * 60 * 1000 }  // 1, 2, 3, 5 minutes
-  : { cart1: 30 * 60 * 1000, cart2: 24 * 60 * 60 * 1000, cart3: 48 * 60 * 60 * 1000, upsell: 5 * 24 * 60 * 60 * 1000 }; // 30min, 24h, 48h, 5j
+  : { cart1: 30 * 60 * 1000, cart2: 24 * 60 * 60 * 1000, cart3: 48 * 60 * 60 * 1000, upsell: 10 * 24 * 60 * 60 * 1000 }; // 30min, 24h, 48h, 10j
 
 // ═══════════════════════════════════════════════════
 // FLOW 1: ABANDONED CART
@@ -121,12 +121,33 @@ const abandonedCart = {
   },
 
   async onOrderCreated(shop, order) {
-    // Customer converted! Cancel pending abandoned cart messages
+    // Customer converted! Cancel ALL pending abandoned cart messages
     const email = order.email;
     const phone = order.phone || order.billing_address?.phone || order.shipping_address?.phone;
+    const altPhones = [order.phone, order.billing_address?.phone, order.shipping_address?.phone].filter(Boolean);
 
+    // Mark checkout as converted (by email)
     if (email) db.markCheckoutConverted(shop, email);
-    if (phone) db.cancelMessages(shop, phone, 'abandoned_cart');
+
+    // Cancel pending messages for ALL phone numbers associated with this order
+    const cancelledPhones = new Set();
+    for (const p of altPhones) {
+      if (p && !cancelledPhones.has(p)) {
+        db.cancelMessages(shop, p, 'abandoned_cart');
+        cancelledPhones.add(p);
+      }
+    }
+
+    // Also cancel by matching checkout email → phone (safety net)
+    if (email) {
+      const matchingCheckouts = db.getCheckoutsByEmail(shop, email);
+      for (const ck of matchingCheckouts) {
+        if (ck.phone && !cancelledPhones.has(ck.phone)) {
+          db.cancelMessages(shop, ck.phone, 'abandoned_cart');
+          cancelledPhones.add(ck.phone);
+        }
+      }
+    }
 
     // Save/update customer for winback tracking
     if (order.customer) {
@@ -141,7 +162,7 @@ const abandonedCart = {
       });
     }
 
-    console.log(`[CART] Order created - cancelled pending messages for ${phone || email}`);
+    console.log(`[CART] Order created — cancelled messages for ${[...cancelledPhones].join(', ')} (email: ${email || 'none'})`);
   }
 };
 
@@ -288,9 +309,14 @@ async function processQueue() {
     try {
       const metadata = JSON.parse(msg.metadata || '{}');
 
-      // Check if checkout was converted (for abandoned cart)
+      // Safety check: skip if checkout was converted since queueing
       if (msg.flow === 'abandoned_cart' && metadata.checkout_id) {
-        const checkout = db.getUnconvertedCheckout(msg.shop, null); // simplified
+        const checkout = db.getCheckoutById(metadata.checkout_id);
+        if (checkout && checkout.converted) {
+          db.updateMessageStatus(msg.id, 'cancelled', null, 'Checkout already converted');
+          console.log(`[QUEUE] Skipped ${msg.template} for ${msg.phone} — checkout ${metadata.checkout_id} already converted`);
+          continue;
+        }
       }
 
       let result;
@@ -298,16 +324,28 @@ async function processQueue() {
       // Abandoned cart templates → use Meta templates with button
       const cartTemplates = ['panier_rappel_1', 'panier_rappel_2', 'panier_rappel_promo'];
       if (cartTemplates.includes(msg.template)) {
-        // Send images grouped first
-        const images = (metadata.items || []).filter(i => i.image_url);
-        for (const item of images) {
-          try {
-            await whatsapp.sendImage(msg.phone, item.image_url);
-            await sleep(300);
-          } catch (imgErr) {
-            console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
+        // A/B test: 50% with product images, 50% without
+        // Variant is determined per phone+checkout (consistent across all 3 messages)
+        const abSeed = (metadata.checkout_id || '') + msg.phone;
+        const abHash = abSeed.split('').reduce((a, c) => ((a << 5) - a) + c.charCodeAt(0), 0);
+        const variant = (Math.abs(abHash) % 2 === 0) ? 'with_images' : 'no_images';
+
+        if (variant === 'with_images') {
+          // Send product images before the template
+          const images = (metadata.items || []).filter(i => i.image_url);
+          for (const item of images) {
+            try {
+              await whatsapp.sendImage(msg.phone, item.image_url);
+              await sleep(300);
+            } catch (imgErr) {
+              console.log(`[QUEUE] Image send failed for ${item.title}: ${imgErr.message}`);
+            }
           }
         }
+
+        // Save A/B variant to message metadata
+        db.setMessageVariant(msg.id, variant);
+        console.log(`[A/B] ${msg.phone} → variant ${variant} (step ${msg.step})`);
 
         // Generate short URL for checkout
         let shortId = 'shop';
