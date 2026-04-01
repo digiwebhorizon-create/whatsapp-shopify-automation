@@ -415,14 +415,15 @@ function getTemplateStats(from, to) {
   });
 
   // Add conversion data per template (for abandoned_cart: check if the checkout linked to the message converted)
+  const dfm = dateClause(from, to, 'm.created_at');
   const convRows = db.prepare(`
     SELECT m.template, COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted,
       COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
     FROM messages m
     LEFT JOIN checkouts c ON m.checkout_id = c.id
-    WHERE m.flow = 'abandoned_cart' ${df.sql.replace(/c\./g, 'm.')}
+    WHERE m.flow = 'abandoned_cart' ${dfm.sql}
     GROUP BY m.template
-  `).all(...df.params);
+  `).all(...dfm.params);
 
   convRows.forEach(r => {
     if (templates[r.template]) {
