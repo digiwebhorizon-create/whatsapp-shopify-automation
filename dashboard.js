@@ -13,17 +13,20 @@ function getDashboardHTML(serverUrl) {
   --teal: #0d5a5c;
   --teal-light: #0f7275;
   --teal-dark: #094243;
-  --magenta: #f542c8;
-  --magenta-light: #f76dd6;
-  --bg: #fafafa;
+  --teal-bg: #f0f7f7;
+  --accent: #1a8a8d;
+  --accent-light: #e6f4f4;
+  --bg: #f5f7f8;
   --card: #ffffff;
-  --text: #1a1a2e;
-  --text-secondary: #64748b;
-  --border: #e8ecf0;
-  --success: #059669;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #0d5a5c;
+  --text: #1a2332;
+  --text-secondary: #6b7a8d;
+  --border: #e4e9ee;
+  --success: #1a8a5c;
+  --success-bg: #f0faf5;
+  --warning: #c08a1e;
+  --warning-bg: #fdf8ef;
+  --danger: #c43d3d;
+  --danger-bg: #fdf2f2;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -112,14 +115,14 @@ body { font-family: 'Poppins', -apple-system, sans-serif; background: var(--bg);
 .kpi.green::before { background: var(--success); }
 .kpi.red::before { background: var(--danger); }
 .kpi.orange::before { background: var(--warning); }
-.kpi.magenta::before { background: var(--magenta); }
+.kpi.magenta::before { background: var(--teal-light); }
 .kpi .label { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
-.kpi .value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.kpi .value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.1; }
 .kpi.teal .value { color: var(--teal); }
 .kpi.green .value { color: var(--success); }
 .kpi.red .value { color: var(--danger); }
 .kpi.orange .value { color: var(--warning); }
-.kpi.magenta .value { color: var(--magenta); }
+.kpi.magenta .value { color: var(--teal-light); }
 .kpi .sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 400; }
 
 /* Cards */
@@ -215,8 +218,8 @@ tr:hover td { background: #f8fafb; }
 .btn-primary:hover { background: var(--teal-light); }
 .btn-secondary { background: #f3f4f6; color: var(--text); border: 1px solid var(--border); }
 .btn-secondary:hover { background: #e8ecf0; }
-.btn-magenta { background: var(--magenta); color: #fff; }
-.btn-magenta:hover { background: var(--magenta-light); }
+.btn-magenta { background: var(--teal); color: #fff; }
+.btn-magenta:hover { background: var(--teal-light); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-danger:hover { background: #b91c1c; }
 .btn-sm { padding: 4px 10px; font-size: 11px; }
@@ -234,7 +237,7 @@ tr:hover td { background: #f8fafb; }
 .timeline-item:last-child { border: none; }
 .timeline-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
 .timeline-dot.out { background: var(--teal); }
-.timeline-dot.in { background: var(--magenta); }
+.timeline-dot.in { background: var(--accent); }
 
 /* Warning banner */
 .warning-banner { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #92400e; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px; }
@@ -317,7 +320,7 @@ tr:hover td { background: #f8fafb; }
   <div class="kpi-grid" id="kpiGrid"></div>
 
   <!-- Couts & ROI -->
-  <div class="card" style="border-left:4px solid var(--magenta)">
+  <div class="card">
     <div class="card-header">
       <h2>&#128176; Couts & ROI WhatsApp</h2>
       <span style="font-size:11px;color:var(--text-secondary)" id="costPerMsg"></span>
@@ -572,7 +575,7 @@ async function loadAll(){
       kpi('Messages envoyes',s.messages_sent||0,'Livres: '+delivRate+'% — Lus: '+readRate+'%','teal'),
       kpi('En attente / Echoues',(s.messages_queued||0)+' / '+(s.messages_failed||0),'','orange'),
       kpi('Paniers recuperes',s.recovered_checkouts||0,(s.recovery_rate||0)+'% sur '+(s.total_checkouts||0)+' detectes','green'),
-      kpi('CA recupere',rev.toFixed(0)+' EUR','ROI: x'+roi,'magenta'),
+      kpi('CA recupere',rev.toFixed(0)+' EUR','ROI: x'+roi,'green'),
       kpi('Cout WhatsApp',totalCost.toFixed(2)+' EUR',(waCost*100).toFixed(1)+' cts/msg — '+(s.messages_sent||0)+' envois','red'),
     ].join('');
     const bf=await api('/api/messages-by-flow?_=1'+dp);renderFlowChart(bf);
@@ -640,7 +643,7 @@ function renderCostCard(stats, flowData, campaigns){
   h+='<div style="text-align:center;padding:16px;background:#fef2f2;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Cout total</div><div style="font-size:26px;font-weight:700;color:var(--danger)">'+totalCost.toFixed(2)+'<span style="font-size:14px"> EUR</span></div></div>';
   h+='<div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">CA recupere</div><div style="font-size:26px;font-weight:700;color:var(--success)">'+rev.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
   h+='<div style="text-align:center;padding:16px;background:'+(profit>=0?'#f0fdf4':'#fef2f2')+';border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Profit net</div><div style="font-size:26px;font-weight:700;color:'+(profit>=0?'var(--success)':'var(--danger)')+'">'+profit.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
-  h+='<div style="text-align:center;padding:16px;background:#fdf4ff;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">ROI</div><div style="font-size:26px;font-weight:700;color:var(--magenta)">x'+roi.toFixed(1)+'</div></div>';
+  h+='<div style="text-align:center;padding:16px;background:var(--teal-bg);border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">ROI</div><div style="font-size:26px;font-weight:700;color:var(--teal)">x'+roi.toFixed(1)+'</div></div>';
   h+='</div>';
 
   // Detail by flow
@@ -892,7 +895,7 @@ function renderTemplateStats(tplStats, flowConv){
     h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Detectes</div><div style="font-size:22px;font-weight:700;color:var(--teal)">'+ac.total_checkouts+'</div></div>';
     h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Convertis</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.converted_checkouts+'</div></div>';
     h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Taux conversion</div><div style="font-size:22px;font-weight:700;color:'+(ac.conversion_rate>5?'var(--success)':'var(--warning)')+'">'+ac.conversion_rate+'%</div></div>';
-    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA recupere</div><div style="font-size:22px;font-weight:700;color:var(--magenta)">'+ac.revenue.toFixed(0)+' EUR</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA recupere</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.revenue.toFixed(0)+' EUR</div></div>';
     h+='</div>';
 
     // Steps funnel
@@ -969,7 +972,7 @@ function renderABTest(data){
   h+='<div><span style="color:var(--text-secondary)">Clics WhatsApp :</span> <strong>'+attr.total_wa_clicks+'</strong></div>';
   h+='<div><span style="color:var(--text-secondary)">Taux de clic :</span> <strong>'+attr.click_rate+'%</strong></div>';
   h+='<div><span style="color:var(--text-secondary)">Conversions totales :</span> <strong style="color:var(--success)">'+attr.total_converted+'</strong></div>';
-  h+='<div><span style="color:var(--text-secondary)">Revenu total :</span> <strong style="color:var(--magenta)">'+attr.total_revenue.toFixed(0)+' EUR</strong></div>';
+  h+='<div><span style="color:var(--text-secondary)">Revenu total :</span> <strong style="color:var(--success)">'+attr.total_revenue.toFixed(0)+' EUR</strong></div>';
   h+='</div>';
 
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
@@ -1337,7 +1340,7 @@ async function openTimelineModal(phone,name){
         h+='<div style="font-weight:500">'+escHtml(m.flow)+' / '+escHtml(m.template)+'</div>';
         h+='<div>'+badge(m.status)+(m.error?' <span style="font-size:11px;color:var(--danger)">'+escHtml(m.error)+'</span>':'')+'</div>';
       }else{
-        h+='<div style="font-weight:500;color:var(--magenta)">'+escHtml(m.message)+'</div>';
+        h+='<div style="font-weight:500;color:var(--success)">'+escHtml(m.message)+'</div>';
       }
       h+='</div></div>';
     });
