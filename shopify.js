@@ -66,28 +66,51 @@ async function createDiscountCode(shop, code, percentage, usageLimit = 1) {
   return discount.discount_code;
 }
 
-// Ensure webhooks are registered
+// Ensure webhooks are registered with correct URL
 async function ensureWebhooks(shop, token) {
+  const serverUrl = getServerUrl();
   const requiredWebhooks = [
-    { topic: 'checkouts/create', address: `${getServerUrl()}/webhooks/checkouts-create` },
-    { topic: 'orders/create', address: `${getServerUrl()}/webhooks/orders-create` },
-    { topic: 'orders/fulfilled', address: `${getServerUrl()}/webhooks/orders-fulfilled` },
+    { topic: 'checkouts/create', address: `${serverUrl}/webhooks/checkouts-create` },
+    { topic: 'orders/create', address: `${serverUrl}/webhooks/orders-create` },
+    { topic: 'orders/fulfilled', address: `${serverUrl}/webhooks/orders-fulfilled` },
   ];
 
   // Get existing webhooks
   const existing = await apiCall(shop, 'webhooks.json');
-  const existingTopics = (existing.webhooks || []).map(w => w.topic);
+  const existingWebhooks = existing.webhooks || [];
 
   for (const wh of requiredWebhooks) {
-    if (!existingTopics.includes(wh.topic)) {
+    const found = existingWebhooks.find(w => w.topic === wh.topic);
+
+    if (found && found.address !== wh.address) {
+      // Wrong URL → delete and recreate
+      try {
+        await apiCall(shop, `webhooks/${found.id}.json`, 'DELETE');
+        console.log(`[SHOPIFY] Deleted outdated webhook: ${wh.topic} (was ${found.address})`);
+      } catch (err) {
+        console.error(`[SHOPIFY] Failed to delete webhook ${found.id}:`, err.message);
+      }
+      // Create with correct URL
       try {
         await apiCall(shop, 'webhooks.json', 'POST', {
           webhook: { topic: wh.topic, address: wh.address, format: 'json' }
         });
-        console.log(`[SHOPIFY] Webhook registered: ${wh.topic} for ${shop}`);
+        console.log(`[SHOPIFY] Webhook re-registered: ${wh.topic} → ${wh.address}`);
+      } catch (err) {
+        console.error(`[SHOPIFY] Webhook re-registration failed for ${wh.topic}:`, err.message);
+      }
+    } else if (!found) {
+      // Missing → create
+      try {
+        await apiCall(shop, 'webhooks.json', 'POST', {
+          webhook: { topic: wh.topic, address: wh.address, format: 'json' }
+        });
+        console.log(`[SHOPIFY] Webhook registered: ${wh.topic} → ${wh.address}`);
       } catch (err) {
         console.error(`[SHOPIFY] Webhook registration failed for ${wh.topic}:`, err.message);
       }
+    } else {
+      console.log(`[SHOPIFY] Webhook OK: ${wh.topic} → ${wh.address}`);
     }
   }
 }
