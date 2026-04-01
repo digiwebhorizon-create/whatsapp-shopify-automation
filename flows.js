@@ -108,13 +108,21 @@ const abandonedCart = {
       metadata: sharedMeta
     });
 
-    // Message 3 (with promo code)
+    // Message 3 (with dynamic promo code)
     const msg3Time = new Date(now.getTime() + DELAYS.cart3);
+    const promoCode = 'LB-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    // Create discount code on Shopify (async, non-blocking for queue)
+    try {
+      await shopify.createDiscountCode(shop, promoCode, 10, 1);
+      console.log(`[CART] Created discount code ${promoCode} for ${phone}`);
+    } catch (err) {
+      console.error(`[CART] Failed to create discount code ${promoCode}: ${err.message}`);
+    }
     db.queueMessage({
       shop, phone, flow: 'abandoned_cart', step: 3,
       template: 'panier_rappel_promo',
       scheduled_at: msg3Time.toISOString(),
-      metadata: { ...sharedMeta, promo_code: 'PANIER10' }
+      metadata: { ...sharedMeta, promo_code: promoCode }
     });
 
     console.log(`[CART] 3 messages queued for ${phone} (checkout ${checkout.id})`);
@@ -240,11 +248,19 @@ const winback = {
         if (customer.winback_stage >= 2) continue;
         if (!db.isOptedIn(customer.phone, shop.domain)) continue;
 
+        const wb15Code = 'LB-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+        try {
+          await shopify.createDiscountCode(shop.domain, wb15Code, 15, 1);
+          console.log(`[WINBACK] Created discount code ${wb15Code} for ${customer.phone}`);
+        } catch (err) {
+          console.error(`[WINBACK] Failed to create discount code ${wb15Code}: ${err.message}`);
+        }
+
         db.queueMessage({
           shop: shop.domain, phone: customer.phone, flow: 'winback', step: 2,
           template: 'winback_offer_15',
           scheduled_at: new Date().toISOString(),
-          metadata: { customer_name: customer.name, customer_id: customer.id, promo_code: 'RETOUR15' }
+          metadata: { customer_name: customer.name, customer_id: customer.id, promo_code: wb15Code }
         });
         db.updateWinbackStage(customer.id, 2);
         console.log(`[WINBACK] Stage 2 queued for ${customer.phone}`);
@@ -256,16 +272,69 @@ const winback = {
         if (customer.winback_stage >= 3) continue;
         if (!db.isOptedIn(customer.phone, shop.domain)) continue;
 
+        const wb20Code = 'LB-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+        try {
+          await shopify.createDiscountCode(shop.domain, wb20Code, 20, 1);
+          console.log(`[WINBACK] Created discount code ${wb20Code} for ${customer.phone}`);
+        } catch (err) {
+          console.error(`[WINBACK] Failed to create discount code ${wb20Code}: ${err.message}`);
+        }
+
         db.queueMessage({
           shop: shop.domain, phone: customer.phone, flow: 'winback', step: 3,
           template: 'winback_offer_20',
           scheduled_at: new Date().toISOString(),
-          metadata: { customer_name: customer.name, customer_id: customer.id, promo_code: 'RETOUR20' }
+          metadata: { customer_name: customer.name, customer_id: customer.id, promo_code: wb20Code }
         });
         db.updateWinbackStage(customer.id, 3);
         console.log(`[WINBACK] Stage 3 queued for ${customer.phone}`);
       }
     }
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// FLOW 4: REVIEW (J+15 after delivery)
+// Order fulfilled → wait 15 days → send review request
+// ═══════════════════════════════════════════════════
+const REVIEW_DELAY = TEST_MODE
+  ? 4 * 60 * 1000  // 4 minutes in test mode
+  : 15 * 24 * 60 * 60 * 1000; // 15 days
+
+const review = {
+  async onOrderFulfilled(shop, order) {
+    if (!db.isFlowEnabled('review')) return;
+
+    const phone = order.phone || order.billing_address?.phone || order.shipping_address?.phone;
+    if (!phone) {
+      console.log(`[REVIEW] No phone for order ${order.id} - skipping`);
+      return;
+    }
+    if (!db.isOptedIn(phone, shop)) {
+      console.log(`[REVIEW] Phone ${phone} not opted in - skipping`);
+      return;
+    }
+
+    // Don't send if already in an active review flow
+    if (db.hasActiveFlow(phone, 'review')) {
+      console.log(`[REVIEW] ${phone} already in review flow - skipping`);
+      return;
+    }
+
+    const customerName = order.customer?.first_name || order.billing_address?.first_name || '';
+    const sendTime = new Date(Date.now() + REVIEW_DELAY);
+
+    db.queueMessage({
+      shop, phone, flow: 'review', step: 1,
+      template: 'demande_avis',
+      scheduled_at: sendTime.toISOString(),
+      metadata: {
+        order_id: String(order.id),
+        customer_name: customerName
+      }
+    });
+
+    console.log(`[REVIEW] Review request queued for ${phone} (order ${order.id}, send in 15 days)`);
   }
 };
 
@@ -304,6 +373,8 @@ async function processQueue() {
   if (pending.length === 0) return;
 
   console.log(`[QUEUE] Processing ${pending.length} pending messages...`);
+  let processedCount = 0;
+  let failedCount = 0;
 
   for (const msg of pending) {
     try {
@@ -383,9 +454,11 @@ async function processQueue() {
       if (result.success) {
         db.updateMessageStatus(msg.id, 'sent', result.messageId, null);
         console.log(`[QUEUE] Sent: ${msg.flow} step ${msg.step} → ${msg.phone}`);
+        processedCount++;
       } else {
         db.updateMessageStatus(msg.id, 'failed', null, result.error);
         console.error(`[QUEUE] Failed: ${msg.flow} step ${msg.step} → ${msg.phone}: ${result.error}`);
+        failedCount++;
       }
 
       // Small delay between messages to avoid rate limiting
@@ -393,7 +466,16 @@ async function processQueue() {
     } catch (err) {
       db.updateMessageStatus(msg.id, 'failed', null, err.message);
       console.error(`[QUEUE] Error processing message ${msg.id}:`, err.message);
+      failedCount++;
     }
+  }
+
+  // Alert if failure rate exceeds 10%
+  const totalProcessed = processedCount + failedCount;
+  if (totalProcessed > 0 && failedCount / totalProcessed > 0.10) {
+    const alertMsg = `High failure rate: ${failedCount}/${totalProcessed} messages failed (${Math.round(failedCount / totalProcessed * 100)}%)`;
+    console.warn(`[ALERT] ${alertMsg}`);
+    db.saveAlert('high_failure_rate', alertMsg);
   }
 }
 
@@ -401,4 +483,4 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-module.exports = { abandonedCart, upsell, winback, processQueue, pollAbandonedCheckouts };
+module.exports = { abandonedCart, upsell, winback, review, processQueue, pollAbandonedCheckouts };

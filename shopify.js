@@ -41,7 +41,7 @@ async function getProductRecommendations(shop, productId) {
 }
 
 // Create discount code
-async function createDiscountCode(shop, code, percentage) {
+async function createDiscountCode(shop, code, percentage, usageLimit = 1) {
   // Create price rule first
   const priceRule = await apiCall(shop, 'price_rules.json', 'POST', {
     price_rule: {
@@ -54,7 +54,7 @@ async function createDiscountCode(shop, code, percentage) {
       customer_selection: 'all',
       starts_at: new Date().toISOString(),
       ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-      usage_limit: 1
+      usage_limit: usageLimit
     }
   });
 

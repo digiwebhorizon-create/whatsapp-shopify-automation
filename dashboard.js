@@ -155,6 +155,10 @@ tr:hover td { background: #f8fafb; }
 .badge.PENDING::before { background: #d97706; }
 .badge.REJECTED { background: #fef2f2; color: #b91c1c; }
 .badge.REJECTED::before { background: #dc2626; }
+.badge.optout { background: #fef2f2; color: #b91c1c; }
+.badge.optout::before { background: #dc2626; }
+.badge.received { background: #eff6ff; color: var(--teal); }
+.badge.received::before { background: var(--teal); }
 
 /* Flows */
 .flow-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s; }
@@ -217,6 +221,20 @@ tr:hover td { background: #f8fafb; }
 .btn-danger:hover { background: #b91c1c; }
 .btn-sm { padding: 4px 10px; font-size: 11px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-export { background: #f3f4f6; color: var(--text); border: 1px solid var(--border); padding: 4px 10px; font-size: 11px; }
+.btn-export:hover { background: #e8ecf0; }
+
+/* Alert badge */
+.alert-bell { position: relative; cursor: pointer; font-size: 18px; background: none; border: none; color: rgba(255,255,255,0.8); padding: 4px; }
+.alert-bell:hover { color: #fff; }
+.alert-badge { position: absolute; top: -4px; right: -6px; background: var(--danger); color: #fff; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+
+/* Timeline modal */
+.timeline-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+.timeline-item:last-child { border: none; }
+.timeline-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.timeline-dot.out { background: var(--teal); }
+.timeline-dot.in { background: var(--magenta); }
 
 /* Warning banner */
 .warning-banner { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #92400e; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px; }
@@ -276,6 +294,7 @@ tr:hover td { background: #f8fafb; }
   </div>
   <div class="right">
     <div class="live"><div class="live-dot"></div> Production</div>
+    <button class="alert-bell" onclick="openAlertModal()" title="Alertes">&#128276;<span class="alert-badge" id="alertBadge" style="display:none">0</span></button>
     <span class="last-refresh" id="lastRefresh"></span>
     <button class="refresh-btn" onclick="loadAll()">Actualiser</button>
   </div>
@@ -319,6 +338,17 @@ tr:hover td { background: #f8fafb; }
     </div>
   </div>
 
+  <!-- Stats par template -->
+  <div class="card">
+    <div class="card-header">
+      <h2>&#128202; Performance par template</h2>
+      <span style="font-size:11px;color:var(--text-secondary)">KPIs detailles par message et par flow</span>
+    </div>
+    <div class="card-body" id="templateStats">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header">
       <h2>&#9878; A/B Test — Images produit (Panier abandonne)</h2>
@@ -349,12 +379,18 @@ tr:hover td { background: #f8fafb; }
   <div class="card">
     <div class="card-header">
       <h2>Donnees</h2>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-export" onclick="window.open('/api/export/contacts')">&#128229; Contacts</button>
+        <button class="btn btn-export" onclick="window.open('/api/export/messages')">&#128229; Messages</button>
+        <button class="btn btn-export" onclick="window.open('/api/export/stats')">&#128229; Stats</button>
+      </div>
     </div>
     <div class="card-body">
       <div class="tabs">
         <button class="tab active" onclick="switchTab('checkouts',this)">Paniers</button>
         <button class="tab" onclick="switchTab('messages',this)">Messages</button>
         <button class="tab" onclick="switchTab('contacts',this)">Contacts</button>
+        <button class="tab" onclick="switchTab('incoming',this)">Reponses</button>
       </div>
       <div class="tab-content active" id="tab-checkouts">
         <table id="checkoutsTable">
@@ -378,6 +414,12 @@ tr:hover td { background: #f8fafb; }
         </div>
         <table id="contactsTable">
           <thead><tr><th>Prenom</th><th>Nom</th><th>Telephone</th><th>Email</th><th>Tags</th><th>Source</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="tab-content" id="tab-incoming">
+        <table id="incomingTable">
+          <thead><tr><th>Date</th><th>Telephone</th><th>Message</th><th>Statut</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -486,12 +528,15 @@ function switchTab(name,el){
   el.classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='contacts') loadContacts();
+  if(name==='incoming') loadIncoming();
 }
 
 const FLOW_TEMPLATES={
   abandoned_cart:['panier_rappel_1','panier_rappel_2','panier_rappel_promo'],
   upsell:['post_purchase_upsell'],
-  winback:['winback_news','winback_offer_15','winback_offer_20']
+  winback:['winback_news','winback_offer_15','winback_offer_20'],
+  review:['demande_avis'],
+  birthday:['birthday_wish']
 };
 
 // ─── Main load ───────────────────────────────────
@@ -521,6 +566,7 @@ async function loadAll(){
     let campaigns=[];
     try{campaigns=await api('/api/campaigns');renderCampaigns(campaigns);}catch(e){}
     try{const ab=await api('/api/ab-results');renderABTest(ab);}catch(e){}
+    try{const ts=await api('/api/template-stats?_=1'+dp);const fc=await api('/api/flow-conversion-stats?_=1'+dp);renderTemplateStats(ts,fc);}catch(e){}
     // Render cost card with all data
     renderCostCard(s, bf, campaigns);
   }catch(err){
@@ -535,6 +581,14 @@ function kpi(l,v,sub,c){return '<div class="kpi '+c+'"><div class="label">'+l+'<
 // ─── Couts & ROI card ───────────────────────────
 function renderCostCard(stats, flowData, campaigns){
   const el=document.getElementById('costCard');
+  const totalSent=stats.messages_sent||0;
+
+  if(totalSent===0){
+    document.getElementById('costPerMsg').textContent='';
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucun message envoye — les couts et le ROI apparaitront ici des le premier envoi.</div>';
+    return;
+  }
+
   document.getElementById('costPerMsg').textContent=(waCost*100).toFixed(1)+' centimes / message (Meta WhatsApp FR)';
 
   // Costs by flow
@@ -544,7 +598,7 @@ function renderCostCard(stats, flowData, campaigns){
     flows[r.flow].total+=r.count;
     if(r.status==='sent')flows[r.flow].sent+=r.count;
   });
-  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback'};
+  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire'};
 
   // Campaign costs
   let campaignCostTotal=0;
@@ -612,7 +666,7 @@ function renderCostCard(stats, flowData, campaigns){
 function renderFlowChart(data){
   const f={};
   data.forEach(r=>{if(!f[r.flow])f[r.flow]={sent:0,queued:0,failed:0,cancelled:0};f[r.flow][r.status]=r.count});
-  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback'};
+  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire'};
   let h='<table><thead><tr><th>Flow</th><th>Envoyes</th><th>Attente</th><th>Echoues</th><th>Annules</th><th>Total</th><th>Cout</th></tr></thead><tbody>';
   for(const[k,d]of Object.entries(f)){
     const t=d.sent+d.queued+d.failed+d.cancelled;
@@ -640,11 +694,11 @@ function renderHourly(data){
 }
 
 function renderFlows(flows){
-  const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation'};
+  const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client'};
   const d=isTestMode
-    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat'}
-    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+10 apres livraison (delai reception)',winback:'Envoi a J+30, J+60, J+90 sans achat'};
-  const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;'};
+    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat',review:'TEST : demande avis rapide',birthday:'TEST : message anniversaire'}
+    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+10 apres livraison (delai reception)',winback:'Envoi a J+30, J+60, J+90 sans achat',review:'Demande d avis J+15 apres livraison',birthday:'Message + promo le jour de l anniversaire'};
+  const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;',review:'&#11088;',birthday:'&#127874;'};
   let h='';
   flows.forEach(f=>{
     const testBadge=isTestMode?' <span style="color:var(--warning);font-weight:600;font-size:11px">MODE TEST</span>':'';
@@ -667,7 +721,7 @@ async function toggleFlow(n,e){
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open')}
 
 function openFlowModal(flowName){
-  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation'};
+  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client'};
   document.getElementById('modalTitle').textContent=names[flowName]||flowName;
 
   const tplNames=FLOW_TEMPLATES[flowName]||[];
@@ -761,6 +815,83 @@ async function saveTemplate(templateId,idx,templateName){
     status.textContent='Erreur : '+err.message;
   }
   saveBtn.disabled=false;
+}
+
+// ─── Template & Flow KPIs ───────────────────────
+function renderTemplateStats(tplStats, flowConv){
+  const el=document.getElementById('templateStats');
+
+  if(!tplStats||tplStats.length===0){
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucune donnee — les stats par template apparaitront apres les premiers envois.</div>';
+    return;
+  }
+
+  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell',winback:'Winback',review:'Demande avis',birthday:'Anniversaire'};
+  const stepNames={abandoned_cart:{1:'Rappel 30min',2:'Rappel 24h',3:'Promo 48h'},upsell:{1:'Recommendation'},winback:{1:'Nouveautes J+30',2:'-15% J+60',3:'-20% J+90'},review:{1:'Demande avis J+15'},birthday:{1:'Voeux'}};
+
+  // Group by flow
+  const byFlow={};
+  tplStats.forEach(t=>{
+    const f=t.flow.startsWith('campaign_')?'campaigns':t.flow;
+    if(!byFlow[f])byFlow[f]=[];
+    byFlow[f].push(t);
+  });
+
+  let h='';
+
+  // Flow conversion KPIs (abandoned_cart)
+  if(flowConv&&flowConv.abandoned_cart){
+    const ac=flowConv.abandoned_cart;
+    h+='<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--teal);margin-bottom:10px">&#128722; Panier abandonne — Funnel de conversion</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Detectes</div><div style="font-size:22px;font-weight:700;color:var(--teal)">'+ac.total_checkouts+'</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Convertis</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.converted_checkouts+'</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Taux conversion</div><div style="font-size:22px;font-weight:700;color:'+(ac.conversion_rate>5?'var(--success)':'var(--warning)')+'">'+ac.conversion_rate+'%</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA recupere</div><div style="font-size:22px;font-weight:700;color:var(--magenta)">'+ac.revenue.toFixed(0)+' EUR</div></div>';
+    h+='</div>';
+
+    // Steps funnel
+    if(ac.steps&&ac.steps.length>0){
+      h+='<div style="display:flex;gap:8px;margin-bottom:14px">';
+      ac.steps.forEach(st=>{
+        const sName=(stepNames.abandoned_cart||{})[st.step]||'Step '+st.step;
+        const cancelPct=st.sent>0?Math.round(st.cancelled/(st.sent+st.cancelled)*100):0;
+        h+='<div style="flex:1;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">';
+        h+='<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">'+sName+'</div>';
+        h+='<div style="font-size:18px;font-weight:700;color:var(--teal)">'+st.sent+'</div>';
+        h+='<div style="font-size:10px;color:var(--text-secondary)">envoyes</div>';
+        if(st.cancelled>0) h+='<div style="font-size:10px;color:var(--success);margin-top:2px">'+st.cancelled+' annules ('+cancelPct+'% convertis avant)</div>';
+        h+='</div>';
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+
+  // Detail table per template
+  h+='<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px">Detail par template</div>';
+  h+='<table><thead><tr><th>Flow</th><th>Step</th><th>Template</th><th>Envoyes</th><th>Echoues</th><th>Annules</th><th>En attente</th><th>Taux echec</th><th>Cout</th></tr></thead><tbody>';
+
+  for(const[flow,templates]of Object.entries(byFlow)){
+    templates.sort((a,b)=>a.step-b.step);
+    templates.forEach(t=>{
+      const fName=flowNames[flow]||(flow.startsWith('campaign_')?'Campagne':'Autre');
+      const sName=(stepNames[flow]||{})[t.step]||'Step '+t.step;
+      const failRate=t.sent>0?Math.round(t.failed/t.sent*100):0;
+      const failColor=failRate>10?'var(--danger)':failRate>5?'var(--warning)':'var(--success)';
+      const cost=(t.sent*waCost).toFixed(2);
+      h+='<tr><td style="font-weight:600">'+fName+'</td><td>'+sName+'</td><td style="font-size:12px;color:var(--teal)">'+escHtml(t.template)+'</td>';
+      h+='<td style="text-align:center;font-weight:600">'+t.sent+'</td>';
+      h+='<td style="text-align:center;color:var(--danger)">'+t.failed+'</td>';
+      h+='<td style="text-align:center;color:var(--text-secondary)">'+t.cancelled+'</td>';
+      h+='<td style="text-align:center;color:var(--teal)">'+t.queued+'</td>';
+      h+='<td style="text-align:center"><span style="color:'+failColor+';font-weight:600">'+failRate+'%</span></td>';
+      h+='<td style="font-weight:600;color:var(--danger)">'+cost+' EUR</td></tr>';
+    });
+  }
+  h+='</tbody></table>';
+
+  el.innerHTML=h;
 }
 
 // ─── A/B Test results ───────────────────────────
@@ -893,7 +1024,8 @@ function renderContacts(data){
     const actions=isManual
       ?'<button class="btn btn-secondary btn-sm" onclick="openEditContactModal('+c.id+',\\''+escHtml(c.first_name||'')+'\\',\\''+escHtml(c.last_name||'')+'\\',\\''+escHtml(c.phone||'')+'\\',\\''+escHtml(c.email||'')+'\\',\\''+escHtml(c.tags||'')+'\\')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteContact('+c.id+')">X</button>'
       :'<span style="font-size:11px;color:var(--text-secondary)">Auto</span>';
-    return '<tr><td style="font-weight:500">'+(c.first_name||'-')+'</td><td>'+(c.last_name||'-')+'</td><td style="font-weight:500">'+(c.phone||'-')+'</td><td>'+(c.email||'-')+'</td><td>'+tags+'</td><td>'+src+'</td><td>'+fmtDate(c.created_at)+'</td><td>'+actions+'</td></tr>';
+    const phoneLink=c.phone?'<a href="#" style="color:var(--teal);font-weight:600;text-decoration:underline;cursor:pointer" onclick="event.preventDefault();openTimelineModal(\\''+escHtml(c.phone)+'\\',\\''+escHtml(c.first_name||'')+'\\')">'+escHtml(c.phone)+'</a>':'-';
+    return '<tr><td style="font-weight:500">'+(c.first_name||'-')+'</td><td>'+(c.last_name||'-')+'</td><td>'+phoneLink+'</td><td>'+(c.email||'-')+'</td><td>'+tags+'</td><td>'+src+'</td><td>'+fmtDate(c.created_at)+'</td><td>'+actions+'</td></tr>';
   }).join('');
 }
 
@@ -1031,6 +1163,8 @@ async function openCampaignModal(){
   h+=segOptions||'<option value="all">Tous</option>';
   h+='</select></div></div>';
 
+  h+='<div class="form-group"><label>Date/heure d envoi (optionnel)</label><input type="datetime-local" id="campaignSchedule"><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Laisser vide pour envoyer immediatement</div></div>';
+
   h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px" id="campaignInfo">&#9989; Selectionnez un segment pour voir le nombre de destinataires</div>';
 
   h+='<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:12px;color:#991b1b;margin-bottom:16px" id="campaignCostInfo"></div>';
@@ -1057,6 +1191,7 @@ async function sendCampaign(){
   const name=document.getElementById('campaignName').value.trim();
   const template=document.getElementById('campaignTemplate').value;
   const segment=document.getElementById('campaignSegment').value;
+  const scheduleVal=document.getElementById('campaignSchedule').value;
   const status=document.getElementById('campaignStatus');
   const btn=document.getElementById('sendCampaignBtn');
 
@@ -1065,13 +1200,16 @@ async function sendCampaign(){
 
   btn.disabled=true;
   status.className='status-msg';
-  status.textContent='Lancement...';
+  status.textContent=scheduleVal?'Programmation...':'Lancement...';
+
+  const payload={name,template,segment};
+  if(scheduleVal) payload.scheduled_at=new Date(scheduleVal).toISOString();
 
   try{
     const res=await fetch(SERVER+'/api/campaigns',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name,template,segment})
+      body:JSON.stringify(payload)
     });
     const data=await res.json();
     if(data.success){
@@ -1097,11 +1235,124 @@ async function cancelCampaign(id){
   }catch(e){alert('Erreur: '+e.message);}
 }
 
+// ─── Incoming messages (Reponses) ───────────────
+async function loadIncoming(){
+  try{
+    const data=await api('/api/incoming-messages');
+    const tb=document.querySelector('#incomingTable tbody');
+    if(!data||data.length===0){
+      tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Aucune reponse recue</td></tr>';
+      return;
+    }
+    tb.innerHTML=data.map(m=>{
+      const body=(m.body||m.message||'').toUpperCase();
+      const isOptout=body.includes('STOP')||body.includes('ARRET')||body.includes('DESABONNER');
+      const statut=isOptout?'<span class="badge optout">Opt-out</span>':'<span class="badge received">Recu</span>';
+      return '<tr><td>'+fmtDate(m.received_at||m.created_at)+'</td><td style="font-weight:500">'+escHtml(m.phone||m.from)+'</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(m.body||m.message||'')+'</td><td>'+statut+'</td></tr>';
+    }).join('');
+  }catch(e){
+    if(e.message!=='Auth required') document.querySelector('#incomingTable tbody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--danger)">Erreur: '+e.message+'</td></tr>';
+  }
+}
+
+// ─── Timeline client ────────────────────────────
+async function openTimelineModal(phone,name){
+  document.getElementById('modalTitle').textContent='Timeline — '+(name?name+' ('+phone+')':phone);
+  document.getElementById('modalBody').innerHTML='<div style="color:var(--text-secondary);font-size:13px">Chargement...</div>';
+  document.getElementById('modalOverlay').classList.add('open');
+
+  try{
+    const msgs=await api('/api/messages?phone='+encodeURIComponent(phone)+'&limit=100');
+    let incoming=[];
+    try{incoming=await api('/api/incoming-messages?phone='+encodeURIComponent(phone));}catch(e){}
+
+    // Merge and sort by date
+    const all=[];
+    (msgs||[]).forEach(m=>all.push({type:'out',date:m.sent_at||m.scheduled_at||m.created_at,flow:m.flow||'-',template:m.template||'-',status:m.status,error:m.error||''}));
+    (incoming||[]).forEach(m=>all.push({type:'in',date:m.received_at||m.created_at,flow:'-',template:'-',status:'received',message:m.body||m.message||''}));
+    all.sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+    if(all.length===0){
+      document.getElementById('modalBody').innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:20px">Aucun message pour ce numero</div>';
+      return;
+    }
+
+    let h='<div style="margin-bottom:12px;font-size:12px;color:var(--text-secondary)">'+all.length+' message'+(all.length>1?'s':'')+' au total</div>';
+    all.forEach(m=>{
+      h+='<div class="timeline-item">';
+      h+='<div class="timeline-dot '+(m.type==='out'?'out':'in')+'"></div>';
+      h+='<div style="flex:1">';
+      h+='<div style="font-size:11px;color:var(--text-secondary)">'+fmtDate(m.date)+' — '+(m.type==='out'?'Envoye':'Recu')+'</div>';
+      if(m.type==='out'){
+        h+='<div style="font-weight:500">'+escHtml(m.flow)+' / '+escHtml(m.template)+'</div>';
+        h+='<div>'+badge(m.status)+(m.error?' <span style="font-size:11px;color:var(--danger)">'+escHtml(m.error)+'</span>':'')+'</div>';
+      }else{
+        h+='<div style="font-weight:500;color:var(--magenta)">'+escHtml(m.message)+'</div>';
+      }
+      h+='</div></div>';
+    });
+
+    document.getElementById('modalBody').innerHTML=h;
+  }catch(e){
+    document.getElementById('modalBody').innerHTML='<div style="color:var(--danger);font-size:13px">Erreur: '+e.message+'</div>';
+  }
+}
+
+// ─── Alertes ────────────────────────────────────
+async function loadAlerts(){
+  try{
+    const data=await api('/api/alerts');
+    const unread=(data||[]).filter(a=>!a.read).length;
+    const badge=document.getElementById('alertBadge');
+    if(unread>0){
+      badge.textContent=unread>99?'99+':unread;
+      badge.style.display='flex';
+    }else{
+      badge.style.display='none';
+    }
+    return data||[];
+  }catch(e){return[];}
+}
+
+async function openAlertModal(){
+  document.getElementById('modalTitle').textContent='Alertes';
+  document.getElementById('modalBody').innerHTML='<div style="color:var(--text-secondary);font-size:13px">Chargement...</div>';
+  document.getElementById('modalOverlay').classList.add('open');
+
+  const alerts=await loadAlerts();
+  if(!alerts||alerts.length===0){
+    document.getElementById('modalBody').innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:20px">Aucune alerte</div>';
+    return;
+  }
+
+  const typeIcons={error:'&#9888;',warning:'&#9888;',info:'&#128712;',success:'&#9989;'};
+  const typeColors={error:'var(--danger)',warning:'var(--warning)',info:'var(--teal)',success:'var(--success)'};
+
+  let h='';
+  alerts.forEach(a=>{
+    const icon=typeIcons[a.type||'info']||'&#128712;';
+    const color=typeColors[a.type||'info']||'var(--teal)';
+    const bg=a.read?'transparent':'#fffbeb';
+    h+='<div style="padding:12px;border-bottom:1px solid var(--border);background:'+bg+'">';
+    h+='<div style="display:flex;gap:8px;align-items:flex-start">';
+    h+='<span style="color:'+color+';font-size:16px">'+icon+'</span>';
+    h+='<div style="flex:1"><div style="font-weight:600;font-size:13px">'+escHtml(a.title||a.message||'Alerte')+'</div>';
+    if(a.details) h+='<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">'+escHtml(a.details)+'</div>';
+    h+='<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">'+fmtDate(a.created_at)+'</div>';
+    h+='</div></div></div>';
+  });
+
+  document.getElementById('modalBody').innerHTML=h;
+  // Mark as read
+  document.getElementById('alertBadge').style.display='none';
+}
+
 // ─── Init ────────────────────────────────────────
 async function init(){
   const ok=await checkAuth();
   if(ok){
     onDateRangeChange();
+    loadAlerts();
   }
 }
 init();

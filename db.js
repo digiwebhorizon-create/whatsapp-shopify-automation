@@ -122,9 +122,24 @@ function init() {
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS incoming_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone TEXT NOT NULL,
+      message TEXT NOT NULL,
+      received_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('abandoned_cart', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('upsell', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('winback', 1);
+    INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('review', 1);
   `);
 
   console.log('[DB] Tables created');
@@ -364,6 +379,59 @@ function getMessagesByFlow(from, to) {
     SELECT flow, status, COUNT(*) as count
     FROM messages WHERE 1=1 ${df.sql} GROUP BY flow, status ORDER BY flow, status
   `).all(...df.params);
+}
+
+function getTemplateStats(from, to) {
+  const df = dateClause(from, to);
+  // Stats per template: sent, failed, cancelled, queued
+  const rows = db.prepare(`
+    SELECT template, flow, step, status, COUNT(*) as count
+    FROM messages WHERE 1=1 ${df.sql}
+    GROUP BY template, flow, step, status
+    ORDER BY flow, step, template
+  `).all(...df.params);
+
+  // Aggregate per template
+  const templates = {};
+  rows.forEach(r => {
+    const key = r.template;
+    if (!templates[key]) templates[key] = { template: key, flow: r.flow, step: r.step, sent: 0, failed: 0, cancelled: 0, queued: 0, total: 0 };
+    templates[key][r.status] = (templates[key][r.status] || 0) + r.count;
+    templates[key].total += r.count;
+  });
+
+  return Object.values(templates);
+}
+
+function getFlowConversionStats(from, to) {
+  const df = dateClause(from, to);
+  // For abandoned_cart: how many checkouts converted after receiving messages
+  const cartStats = db.prepare(`
+    SELECT
+      COUNT(DISTINCT c.id) as total_checkouts,
+      COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted_checkouts,
+      COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
+    FROM checkouts c
+    WHERE 1=1 ${df.sql}
+  `).get(...df.params);
+
+  // Messages per step for abandoned_cart
+  const cartSteps = db.prepare(`
+    SELECT step,
+      COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+      COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled
+    FROM messages
+    WHERE flow = 'abandoned_cart' ${df.sql}
+    GROUP BY step ORDER BY step
+  `).all(...df.params);
+
+  return {
+    abandoned_cart: {
+      ...cartStats,
+      conversion_rate: cartStats.total_checkouts > 0 ? Math.round(cartStats.converted_checkouts / cartStats.total_checkouts * 100) : 0,
+      steps: cartSteps
+    }
+  };
 }
 
 function getMessagesByDay(days = 30) {
@@ -606,6 +674,27 @@ function getABTestResults() {
   };
 }
 
+// ─── Incoming Messages ──────────────────────────
+function saveIncomingMessage(phone, message) {
+  db.prepare('INSERT INTO incoming_messages (phone, message) VALUES (?, ?)').run(phone, message);
+}
+
+function getIncomingMessages(limit = 50, from, to) {
+  const df = dateClause(from, to, 'received_at');
+  return db.prepare(`
+    SELECT * FROM incoming_messages WHERE 1=1 ${df.sql} ORDER BY received_at DESC LIMIT ?
+  `).all(...df.params, limit);
+}
+
+// ─── Alerts ─────────────────────────────────────
+function saveAlert(type, message) {
+  db.prepare('INSERT INTO alerts (type, message) VALUES (?, ?)').run(type, message);
+}
+
+function getAlerts(limit = 50) {
+  return db.prepare('SELECT * FROM alerts ORDER BY created_at DESC LIMIT ?').all(limit);
+}
+
 module.exports = {
   init, saveShop, getShops, getShopToken,
   saveCheckout, getCheckoutById, getCheckoutsByEmail, markCheckoutConverted, getUnconvertedCheckout,
@@ -615,9 +704,11 @@ module.exports = {
   saveCustomer, getInactiveCustomers, updateWinbackStage,
   saveRedirect, getRedirectUrl, trackRedirectClick, getRedirectClicks, getTotalClicks, clearAll,
   getSqliteNow, getStats,
-  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getDailyRevenue, getHourlyDistribution,
+  getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getTemplateStats, getFlowConversionStats, getDailyRevenue, getHourlyDistribution,
   createCampaign, getCampaigns, getCampaignById, updateCampaignStatus,
   getCustomersWithPhone, getAllCustomersWithPhone,
   addContact, updateContact, deleteContact, getContacts, getSegments,
-  setMessageVariant, getABTestResults
+  setMessageVariant, getABTestResults,
+  saveIncomingMessage, getIncomingMessages,
+  saveAlert, getAlerts
 };

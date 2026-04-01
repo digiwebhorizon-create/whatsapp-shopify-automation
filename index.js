@@ -122,7 +122,7 @@ app.post('/webhooks/orders-create', async (req, res) => {
   }
 });
 
-// Order fulfilled → Upsell flow
+// Order fulfilled → Upsell flow + Review flow
 app.post('/webhooks/orders-fulfilled', async (req, res) => {
   res.status(200).send('OK');
   try {
@@ -130,8 +130,74 @@ app.post('/webhooks/orders-fulfilled', async (req, res) => {
     const shopDomain = req.get('x-shopify-shop-domain');
     console.log(`[WEBHOOK] orders/fulfilled from ${shopDomain} - order ${order.id}`);
     await flows.upsell.onOrderFulfilled(shopDomain, order);
+    await flows.review.onOrderFulfilled(shopDomain, order);
   } catch (err) {
     console.error('[WEBHOOK] orders/fulfilled error:', err.message);
+  }
+});
+
+// ─── WhatsApp Webhook (Meta) ────────────────────
+
+// Verification endpoint for Meta webhook setup
+const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'whatsapp_webhook_verify_token';
+
+app.get('/webhooks/whatsapp', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === WA_VERIFY_TOKEN) {
+    console.log('[WA-WEBHOOK] Verification successful');
+    return res.status(200).send(challenge);
+  }
+  res.status(403).send('Forbidden');
+});
+
+// Incoming messages handler
+const OPT_OUT_KEYWORDS = ['stop', 'arret', 'desabonner'];
+const OPT_IN_KEYWORDS = ['start', 'reprendre'];
+
+app.post('/webhooks/whatsapp', (req, res) => {
+  res.status(200).send('OK'); // Respond immediately
+
+  try {
+    const body = req.body;
+    const entries = body.entry || [];
+    const defaultShop = process.env.SHOPIFY_STORE_DOMAIN || 'lebourlingueur.myshopify.com';
+
+    for (const entry of entries) {
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        if (change.field !== 'messages') continue;
+        const messages = change.value?.messages || [];
+
+        for (const msg of messages) {
+          const phone = msg.from;
+          const text = (msg.text?.body || '').trim();
+
+          if (!phone || !text) continue;
+
+          // Store incoming message
+          db.saveIncomingMessage(phone, text);
+          console.log(`[WA-WEBHOOK] Incoming from ${phone}: ${text}`);
+
+          const textLower = text.toLowerCase();
+
+          // Check for opt-out keywords
+          if (OPT_OUT_KEYWORDS.includes(textLower)) {
+            db.optOut(phone, defaultShop);
+            console.log(`[WA-WEBHOOK] Opt-out: ${phone}`);
+          }
+          // Check for opt-in keywords
+          else if (OPT_IN_KEYWORDS.includes(textLower)) {
+            db.saveOptin(phone, defaultShop, 'whatsapp_reply');
+            console.log(`[WA-WEBHOOK] Opt-in: ${phone}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[WA-WEBHOOK] Error processing incoming message:', err.message);
   }
 });
 
@@ -249,7 +315,7 @@ app.get('/api/customers', requireAuth, (req, res) => {
 });
 
 app.post('/api/campaigns', requireAuth, async (req, res) => {
-  const { name, template, segment } = req.body;
+  const { name, template, segment, scheduled_at } = req.body;
   if (!name || !template) return res.status(400).json({ error: 'name and template required' });
 
   // Get contacts based on segment
@@ -257,6 +323,7 @@ app.post('/api/campaigns', requireAuth, async (req, res) => {
   if (contacts.length === 0) return res.status(400).json({ error: 'Aucun contact dans ce segment' });
 
   const defaultShop = process.env.SHOPIFY_STORE_DOMAIN || 'lebourlingueur.myshopify.com';
+  const sendAt = scheduled_at || new Date().toISOString();
 
   const campaignId = db.createCampaign({
     name, template,
@@ -265,7 +332,7 @@ app.post('/api/campaigns', requireAuth, async (req, res) => {
     target_count: contacts.length
   });
 
-  db.updateCampaignStatus(campaignId, 'sending');
+  db.updateCampaignStatus(campaignId, scheduled_at ? 'scheduled' : 'sending');
   let queued = 0;
   for (const contact of contacts) {
     db.queueMessage({
@@ -274,7 +341,7 @@ app.post('/api/campaigns', requireAuth, async (req, res) => {
       flow: 'campaign_' + campaignId,
       step: 1,
       template,
-      scheduled_at: new Date().toISOString(),
+      scheduled_at: sendAt,
       metadata: {
         campaign_id: campaignId,
         customer_name: (contact.first_name || contact.name || '').split(' ')[0],
@@ -284,7 +351,7 @@ app.post('/api/campaigns', requireAuth, async (req, res) => {
     queued++;
   }
 
-  res.json({ success: true, campaign_id: campaignId, queued, total: contacts.length });
+  res.json({ success: true, campaign_id: campaignId, queued, total: contacts.length, scheduled_at: sendAt });
 });
 
 app.post('/api/campaigns/:id/cancel', (req, res) => {
@@ -303,10 +370,77 @@ app.post('/api/campaigns/:id/cancel', (req, res) => {
   res.json({ success: true });
 });
 
+// ─── Template & Flow Stats ──────────────────────
+app.get('/api/template-stats', requireAuth, (req, res) => {
+  const { from, to } = req.query;
+  res.json(db.getTemplateStats(from, to));
+});
+
+app.get('/api/flow-conversion-stats', requireAuth, (req, res) => {
+  const { from, to } = req.query;
+  res.json(db.getFlowConversionStats(from, to));
+});
+
 // ─── A/B Test Results ───────────────────────────
 app.get('/api/ab-results', requireAuth, (req, res) => {
   res.json(db.getABTestResults());
 });
+
+// ─── Incoming Messages API ─────────────────────
+app.get('/api/incoming-messages', requireAuth, (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const { from, to } = req.query;
+  res.json(db.getIncomingMessages(limit, from, to));
+});
+
+// ─── Alerts API ────────────────────────────────
+app.get('/api/alerts', requireAuth, (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json(db.getAlerts(limit));
+});
+
+// ─── Export CSV ────────────────────────────────
+app.get('/api/export/contacts', requireAuth, (req, res) => {
+  const contacts = db.getContacts('all');
+  const header = 'id,first_name,last_name,phone,email,tags,source,shop,created_at';
+  const rows = contacts.map(c =>
+    [c.id, csvEscape(c.first_name), csvEscape(c.last_name), c.phone, csvEscape(c.email), csvEscape(c.tags), c.source, c.shop, c.created_at].join(',')
+  );
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
+  res.send([header, ...rows].join('\n'));
+});
+
+app.get('/api/export/messages', requireAuth, (req, res) => {
+  const { from, to } = req.query;
+  const messages = db.getRecentMessages(10000, from, to);
+  const header = 'id,shop,phone,flow,step,template,status,wa_message_id,scheduled_at,sent_at,error,created_at';
+  const rows = messages.map(m =>
+    [m.id, m.shop, m.phone, m.flow, m.step, m.template, m.status, m.wa_message_id || '', m.scheduled_at, m.sent_at || '', csvEscape(m.error || ''), m.created_at].join(',')
+  );
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="messages.csv"');
+  res.send([header, ...rows].join('\n'));
+});
+
+app.get('/api/export/stats', requireAuth, (req, res) => {
+  const { from, to } = req.query;
+  const stats = db.getStats(from, to);
+  const header = Object.keys(stats).join(',');
+  const row = Object.values(stats).join(',');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="stats.csv"');
+  res.send([header, row].join('\n'));
+});
+
+function csvEscape(val) {
+  if (val == null) return '';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
 
 // ─── Dashboard HTML ─────────────────────────────
 const dashboardServerUrl = process.env.SERVER_URL || 'https://panier.le-bourlingueur.com';
