@@ -870,7 +870,7 @@ function renderTemplateStats(tplStats, flowConv){
 
   // Detail table per template
   h+='<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px">Detail par template</div>';
-  h+='<table><thead><tr><th>Flow</th><th>Step</th><th>Template</th><th>Envoyes</th><th>Echoues</th><th>Annules</th><th>En attente</th><th>Taux echec</th><th>Cout</th></tr></thead><tbody>';
+  h+='<table><thead><tr><th>Flow</th><th>Step</th><th>Template</th><th>Envoyes</th><th>Echoues</th><th>Annules</th><th>En attente</th><th>Taux echec</th><th>Taux conv.</th><th>CA recupere</th><th>Cout</th></tr></thead><tbody>';
 
   for(const[flow,templates]of Object.entries(byFlow)){
     templates.sort((a,b)=>a.step-b.step);
@@ -880,12 +880,17 @@ function renderTemplateStats(tplStats, flowConv){
       const failRate=t.sent>0?Math.round(t.failed/t.sent*100):0;
       const failColor=failRate>10?'var(--danger)':failRate>5?'var(--warning)':'var(--success)';
       const cost=(t.sent*waCost).toFixed(2);
+      const convRate=t.sent>0?Math.round((t.converted||0)/t.sent*100):0;
+      const convColor=convRate>10?'var(--success)':convRate>0?'var(--warning)':'var(--text-secondary)';
+      const rev=(t.revenue||0).toFixed(0);
       h+='<tr><td style="font-weight:600">'+fName+'</td><td>'+sName+'</td><td style="font-size:12px;color:var(--teal)">'+escHtml(t.template)+'</td>';
       h+='<td style="text-align:center;font-weight:600">'+t.sent+'</td>';
       h+='<td style="text-align:center;color:var(--danger)">'+t.failed+'</td>';
       h+='<td style="text-align:center;color:var(--text-secondary)">'+t.cancelled+'</td>';
       h+='<td style="text-align:center;color:var(--teal)">'+t.queued+'</td>';
       h+='<td style="text-align:center"><span style="color:'+failColor+';font-weight:600">'+failRate+'%</span></td>';
+      h+='<td style="text-align:center"><span style="color:'+convColor+';font-weight:700">'+convRate+'%</span></td>';
+      h+='<td style="text-align:center;font-weight:700;color:var(--success)">'+(rev>0?rev+' EUR':'-')+'</td>';
       h+='<td style="font-weight:600;color:var(--danger)">'+cost+' EUR</td></tr>';
     });
   }
