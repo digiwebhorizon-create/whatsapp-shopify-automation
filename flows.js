@@ -79,6 +79,17 @@ const abandonedCart = {
       customer_name: customerName
     });
 
+    // Auto-add to contacts
+    const lastName = checkout.billing_address?.last_name || checkout.customer?.last_name || '';
+    db.addContact({
+      phone, shop,
+      first_name: customerName,
+      last_name: lastName,
+      email: checkout.email || '',
+      tags: 'shopify,panier-abandonne',
+      source: 'shopify'
+    });
+
     const now = new Date();
 
     // Shared metadata for all 3 messages

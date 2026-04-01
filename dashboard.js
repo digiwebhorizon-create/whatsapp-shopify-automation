@@ -282,7 +282,7 @@ tr:hover td { background: #f8fafb; }
   <div class="login-box">
     <div style="font-size:32px;margin-bottom:12px">LB</div>
     <h2>Le Bourlingueur</h2>
-    <div class="subtitle">Marketing WhatsApp — Acces Dashboard</div>
+    <div class="subtitle">Marketing WhatsApp — Accès Dashboard</div>
     <input type="email" id="loginEmail" placeholder="Email" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
     <input type="password" id="loginPassword" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">Se connecter</button>
@@ -306,14 +306,21 @@ tr:hover td { background: #f8fafb; }
 <div class="container">
   <!-- Date filter -->
   <div class="date-filter-bar">
-    <label>Periode :</label>
+    <label>Période :</label>
     <select id="dateRange" onchange="onDateRangeChange()">
       <option value="all">Tout</option>
       <option value="today">Aujourd'hui</option>
       <option value="7d" selected>7 derniers jours</option>
       <option value="30d">30 derniers jours</option>
       <option value="90d">90 derniers jours</option>
+      <option value="custom">Personnalisé...</option>
     </select>
+    <span id="customDateRange" style="display:none;gap:8px;align-items:center">
+      <label style="font-size:11px;text-transform:none;letter-spacing:0">Du</label>
+      <input type="date" id="dateFrom" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:Poppins,sans-serif;font-size:12px" onchange="onCustomDateChange()">
+      <label style="font-size:11px;text-transform:none;letter-spacing:0">au</label>
+      <input type="date" id="dateTo" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:Poppins,sans-serif;font-size:12px" onchange="onCustomDateChange()">
+    </span>
     <span class="date-range-info" id="dateRangeInfo"></span>
   </div>
 
@@ -322,7 +329,7 @@ tr:hover td { background: #f8fafb; }
   <!-- Couts & ROI -->
   <div class="card">
     <div class="card-header">
-      <h2>&#128176; Couts & ROI WhatsApp</h2>
+      <h2>&#128176; Coûts & ROI WhatsApp</h2>
       <span style="font-size:11px;color:var(--text-secondary)" id="costPerMsg"></span>
     </div>
     <div class="card-body" id="costCard">
@@ -336,15 +343,15 @@ tr:hover td { background: #f8fafb; }
       <div class="card-body" id="flowChart"></div>
     </div>
     <div class="card">
-      <div class="card-header"><h2>Heures d envoi</h2></div>
+      <div class="card-header"><h2>Heures d&#39;envoi</h2></div>
       <div class="card-body" id="hourlyChart"></div>
     </div>
   </div>
 
-  <!-- CA recupere dans le temps -->
+  <!-- CA récupéré dans le temps -->
   <div class="card">
     <div class="card-header">
-      <h2>&#128200; CA recupere dans le temps</h2>
+      <h2>&#128200; CA récupéré dans le temps</h2>
       <span style="font-size:11px;color:var(--text-secondary)">30 derniers jours</span>
     </div>
     <div class="card-body" id="revenueChart">
@@ -356,7 +363,7 @@ tr:hover td { background: #f8fafb; }
   <div class="card">
     <div class="card-header">
       <h2>&#128202; Performance par template</h2>
-      <span style="font-size:11px;color:var(--text-secondary)">KPIs detailles par message et par flow</span>
+      <span style="font-size:11px;color:var(--text-secondary)">KPIs détaillés par message et par flow</span>
     </div>
     <div class="card-body" id="templateStats">
       <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
@@ -365,17 +372,17 @@ tr:hover td { background: #f8fafb; }
 
   <div class="card">
     <div class="card-header">
-      <h2>&#9878; A/B Test — Images produit (Panier abandonne)</h2>
+      <h2>&#9878; A/B Test — Images produit (Panier abandonné)</h2>
     </div>
     <div class="card-body" id="abTestResults">
-      <div style="color:var(--text-secondary);font-size:13px">Chargement des resultats A/B...</div>
+      <div style="color:var(--text-secondary);font-size:13px">Chargement des résultats A/B...</div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-header">
       <h2>Automatisations</h2>
-      <span style="font-size:11px;color:var(--text-secondary)">Cliquer pour voir/modifier les templates</span>
+      <span style="font-size:11px;color:var(--text-secondary)">Cliquer pour voir / modifier les templates</span>
     </div>
     <div class="card-body" id="flowControls"></div>
   </div>
@@ -392,7 +399,7 @@ tr:hover td { background: #f8fafb; }
 
   <div class="card">
     <div class="card-header">
-      <h2>Donnees</h2>
+      <h2>Données</h2>
       <div style="display:flex;gap:6px">
         <button class="btn btn-export" onclick="window.open('/api/export/contacts')">&#128229; Contacts</button>
         <button class="btn btn-export" onclick="window.open('/api/export/messages')">&#128229; Messages</button>
@@ -404,7 +411,7 @@ tr:hover td { background: #f8fafb; }
         <button class="tab active" onclick="switchTab('checkouts',this)">Paniers</button>
         <button class="tab" onclick="switchTab('messages',this)">Messages</button>
         <button class="tab" onclick="switchTab('contacts',this)">Contacts</button>
-        <button class="tab" onclick="switchTab('incoming',this)">Reponses</button>
+        <button class="tab" onclick="switchTab('incoming',this)">Réponses</button>
       </div>
       <div class="tab-content active" id="tab-checkouts">
         <table id="checkoutsTable">
@@ -414,7 +421,7 @@ tr:hover td { background: #f8fafb; }
       </div>
       <div class="tab-content" id="tab-messages">
         <table id="messagesTable">
-          <thead><tr><th>Cree</th><th>Prevu</th><th>Tel</th><th>Flow</th><th>Template</th><th>Statut</th><th>Envoye</th><th>Erreur</th></tr></thead>
+          <thead><tr><th>Créé</th><th>Prévu</th><th>Tel</th><th>Flow</th><th>Template</th><th>Statut</th><th>Envoyé</th><th>Erreur</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -427,13 +434,13 @@ tr:hover td { background: #f8fafb; }
           <span style="font-size:12px;color:var(--text-secondary)" id="contactCount"></span>
         </div>
         <table id="contactsTable">
-          <thead><tr><th>Prenom</th><th>Nom</th><th>Telephone</th><th>Email</th><th>Tags</th><th>Source</th><th>Date</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Prénom</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Tags</th><th>Source</th><th>Date</th><th>Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="tab-content" id="tab-incoming">
         <table id="incomingTable">
-          <thead><tr><th>Date</th><th>Telephone</th><th>Message</th><th>Statut</th></tr></thead>
+          <thead><tr><th>Date</th><th>Téléphone</th><th>Message</th><th>Statut</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -463,6 +470,12 @@ let needsAuth=false;
 function getDateRange(){
   const sel=document.getElementById('dateRange').value;
   if(sel==='all') return {};
+  if(sel==='custom'){
+    const f=document.getElementById('dateFrom').value;
+    const t=document.getElementById('dateTo').value;
+    if(!f||!t) return {};
+    return {from:f+'T00:00:00',to:t+'T23:59:59'};
+  }
   const to=new Date();
   let from=new Date();
   if(sel==='today'){from.setHours(0,0,0,0);}
@@ -479,14 +492,33 @@ function dateParams(){
   const s=p.toString();
   return s?'&'+s:'';
 }
+function onCustomDateChange(){
+  const f=document.getElementById('dateFrom').value;
+  const t=document.getElementById('dateTo').value;
+  if(f&&t){
+    const info=document.getElementById('dateRangeInfo');
+    const fd=new Date(f);
+    const td=new Date(t);
+    info.textContent=fd.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})+' — '+td.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+    loadAll();
+  }
+}
 function onDateRangeChange(){
+  const sel=document.getElementById('dateRange').value;
+  const customEl=document.getElementById('customDateRange');
+  if(sel==='custom'){
+    customEl.style.display='flex';
+    return;
+  }else{
+    customEl.style.display='none';
+  }
   const r=getDateRange();
   const info=document.getElementById('dateRangeInfo');
   if(r.from){
     const fd=new Date(r.from);
     info.textContent=fd.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})+' — Maintenant';
   }else{
-    info.textContent='Toutes les donnees';
+    info.textContent='Toutes les données';
   }
   loadAll();
 }
@@ -533,7 +565,7 @@ async function api(p){
   return res.json();
 }
 function fmtDate(d){if(!d)return'-';const dt=new Date(d.replace(' ','T')+(d.includes('Z')?'':'Z'));return dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
-function badge(s){const labels={sent:'Envoye',queued:'En attente',failed:'Echoue',cancelled:'Annule',converted:'Recupere',abandoned:'Abandonne',APPROVED:'Approuve',PENDING:'En review',REJECTED:'Rejete'};return '<span class="badge '+s+'">'+(labels[s]||s)+'</span>'}
+function badge(s){const labels={sent:'Envoyé',queued:'En attente',failed:'Échoué',cancelled:'Annulé',converted:'Récupéré',abandoned:'Abandonné',APPROVED:'Approuvé',PENDING:'En review',REJECTED:'Rejeté'};return '<span class="badge '+s+'">'+(labels[s]||s)+'</span>'}
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function switchTab(name,el){
@@ -572,11 +604,11 @@ async function loadAll(){
     const readRate=delStats.sent>0?Math.round(delStats.read_count/delStats.sent*100):0;
 
     document.getElementById('kpiGrid').innerHTML=[
-      kpi('Messages envoyes',s.messages_sent||0,'Livres: '+delivRate+'% — Lus: '+readRate+'%','teal'),
-      kpi('En attente / Echoues',(s.messages_queued||0)+' / '+(s.messages_failed||0),'','orange'),
-      kpi('Paniers recuperes',s.recovered_checkouts||0,(s.recovery_rate||0)+'% sur '+(s.total_checkouts||0)+' detectes','green'),
-      kpi('CA recupere',rev.toFixed(0)+' EUR','ROI: x'+roi,'green'),
-      kpi('Cout WhatsApp',totalCost.toFixed(2)+' EUR',(waCost*100).toFixed(1)+' cts/msg — '+(s.messages_sent||0)+' envois','red'),
+      kpi('Messages envoyés',s.messages_sent||0,'Livrés : '+delivRate+'% — Lus : '+readRate+'%','teal'),
+      kpi('En attente / Échoués',(s.messages_queued||0)+' / '+(s.messages_failed||0),'','orange'),
+      kpi('Paniers récupérés',s.recovered_checkouts||0,(s.recovery_rate||0)+'% sur '+(s.total_checkouts||0)+' détectés','green'),
+      kpi('CA récupéré',rev.toFixed(0)+' EUR','ROI: x'+roi,'green'),
+      kpi('Coût WhatsApp',totalCost.toFixed(2)+' EUR',(waCost*100).toFixed(1)+' cts/msg — '+(s.messages_sent||0)+' envois','red'),
     ].join('');
     const bf=await api('/api/messages-by-flow?_=1'+dp);renderFlowChart(bf);
     const hr=await api('/api/hourly-distribution?_=1'+dp);renderHourly(hr);
@@ -608,7 +640,7 @@ function renderCostCard(stats, flowData, campaigns){
 
   if(totalSent===0){
     document.getElementById('costPerMsg').textContent='';
-    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucun message envoye — les couts et le ROI apparaitront ici des le premier envoi.</div>';
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucun message envoyé — les coûts et le ROI apparaîtront ici dès le premier envoi.</div>';
     return;
   }
 
@@ -621,7 +653,7 @@ function renderCostCard(stats, flowData, campaigns){
     flows[r.flow].total+=r.count;
     if(r.status==='sent')flows[r.flow].sent+=r.count;
   });
-  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
+  const flowNames={abandoned_cart:'Panier abandonné',upsell:'Upsell post-achat',winback:'Winback',review:"Demande d'avis",birthday:'Anniversaire',crosssell:'Cross-sell'};
 
   // Campaign costs
   let campaignCostTotal=0;
@@ -640,14 +672,14 @@ function renderCostCard(stats, flowData, campaigns){
 
   // Big ROI numbers
   h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">';
-  h+='<div style="text-align:center;padding:16px;background:#fef2f2;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Cout total</div><div style="font-size:26px;font-weight:700;color:var(--danger)">'+totalCost.toFixed(2)+'<span style="font-size:14px"> EUR</span></div></div>';
-  h+='<div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">CA recupere</div><div style="font-size:26px;font-weight:700;color:var(--success)">'+rev.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
+  h+='<div style="text-align:center;padding:16px;background:#fef2f2;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Coût total</div><div style="font-size:26px;font-weight:700;color:var(--danger)">'+totalCost.toFixed(2)+'<span style="font-size:14px"> EUR</span></div></div>';
+  h+='<div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">CA récupéré</div><div style="font-size:26px;font-weight:700;color:var(--success)">'+rev.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
   h+='<div style="text-align:center;padding:16px;background:'+(profit>=0?'#f0fdf4':'#fef2f2')+';border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">Profit net</div><div style="font-size:26px;font-weight:700;color:'+(profit>=0?'var(--success)':'var(--danger)')+'">'+profit.toFixed(0)+'<span style="font-size:14px"> EUR</span></div></div>';
   h+='<div style="text-align:center;padding:16px;background:var(--teal-bg);border-radius:10px"><div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px">ROI</div><div style="font-size:26px;font-weight:700;color:var(--teal)">x'+roi.toFixed(1)+'</div></div>';
   h+='</div>';
 
   // Detail by flow
-  h+='<table><thead><tr><th>Source</th><th>Messages envoyes</th><th>Cout</th><th>% du total</th></tr></thead><tbody>';
+  h+='<table><thead><tr><th>Source</th><th>Messages envoyés</th><th>Coût</th><th>% du total</th></tr></thead><tbody>';
   let flowCostTotal=0;
   for(const[k,d]of Object.entries(flows)){
     const cost=d.sent*waCost;
@@ -668,16 +700,16 @@ function renderCostCard(stats, flowData, campaigns){
 
   // Cost per conversion
   if(stats.recovered_checkouts>0){
-    h+='<div style="margin-top:14px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">Cout par conversion : <strong>'+costPerConversion.toFixed(2)+' EUR</strong> — pour '+stats.recovered_checkouts+' panier'+(stats.recovered_checkouts>1?'s':'')+' recupere'+(stats.recovered_checkouts>1?'s':'')+'</div>';
+    h+='<div style="margin-top:14px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">Coût par conversion : <strong>'+costPerConversion.toFixed(2)+' EUR</strong> — pour '+stats.recovered_checkouts+' panier'+(stats.recovered_checkouts>1?'s':'')+' récupéré'+(stats.recovered_checkouts>1?'s':'')+'</div>';
   }
 
   // Campaign detail if any
   if(campaigns&&campaigns.length>0){
-    h+='<div style="margin-top:16px"><div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">Detail par campagne</div>';
-    h+='<table><thead><tr><th>Campagne</th><th>Template</th><th>Envoyes</th><th>Cout</th><th>Statut</th></tr></thead><tbody>';
+    h+='<div style="margin-top:16px"><div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">Détail par campagne</div>';
+    h+='<table><thead><tr><th>Campagne</th><th>Template</th><th>Envoyés</th><th>Coût</th><th>Statut</th></tr></thead><tbody>';
     campaigns.forEach(c=>{
       const cCost=(c.sent_count*waCost).toFixed(2);
-      const st={draft:'En attente',sending:'Envoi...',sent:'Termine',completed:'Termine',cancelled:'Annule'};
+      const st={draft:'En attente',sending:'Envoi...',sent:'Terminé',completed:'Terminé',cancelled:'Annulé'};
       h+='<tr><td style="font-weight:600">'+escHtml(c.name)+'</td><td style="font-size:12px">'+escHtml(c.template)+'</td><td style="text-align:center">'+c.sent_count+' / '+c.target_count+'</td><td style="font-weight:700;color:var(--danger)">'+cCost+' EUR</td><td>'+(st[c.status]||c.status)+'</td></tr>';
     });
     h+='</tbody></table></div>';
@@ -689,8 +721,8 @@ function renderCostCard(stats, flowData, campaigns){
 function renderFlowChart(data){
   const f={};
   data.forEach(r=>{if(!f[r.flow])f[r.flow]={sent:0,queued:0,failed:0,cancelled:0};f[r.flow][r.status]=r.count});
-  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback',review:'Demande d avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
-  let h='<table><thead><tr><th>Flow</th><th>Envoyes</th><th>Attente</th><th>Echoues</th><th>Annules</th><th>Total</th><th>Cout</th></tr></thead><tbody>';
+  const names={abandoned_cart:'Panier abandonné',upsell:'Upsell post-achat',winback:'Winback',review:"Demande d'avis",birthday:'Anniversaire',crosssell:'Cross-sell'};
+  let h='<table><thead><tr><th>Flow</th><th>Envoyés</th><th>Attente</th><th>Échoués</th><th>Annulés</th><th>Total</th><th>Coût</th></tr></thead><tbody>';
   for(const[k,d]of Object.entries(f)){
     const t=d.sent+d.queued+d.failed+d.cancelled;
     const cost=(d.sent*waCost).toFixed(2);
@@ -719,13 +751,13 @@ function renderHourly(data){
 function renderRevenueChart(data){
   const el=document.getElementById('revenueChart');
   if(!data||data.length===0){
-    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucune conversion — le graphique apparaitra apres la premiere vente recuperee.</div>';
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucune conversion — le graphique apparaîtra après la première vente récupérée.</div>';
     return;
   }
   const mx=Math.max(...data.map(d=>d.revenue),1);
   const totalRev=data.reduce((s,d)=>s+d.revenue,0);
   const totalConv=data.reduce((s,d)=>s+d.conversions,0);
-  let h='<div style="margin-bottom:12px;font-size:13px"><strong>'+totalConv+'</strong> conversion'+(totalConv>1?'s':'')+' — <strong>'+totalRev.toFixed(0)+' EUR</strong> recuperes sur 30 jours</div>';
+  let h='<div style="margin-bottom:12px;font-size:13px"><strong>'+totalConv+'</strong> conversion'+(totalConv>1?'s':'')+' — <strong>'+totalRev.toFixed(0)+' EUR</strong> récupérés sur 30 jours</div>';
   h+='<div style="display:flex;align-items:flex-end;gap:3px;height:120px">';
   data.reverse().forEach(d=>{
     const p=d.revenue/mx*100;
@@ -742,10 +774,10 @@ function renderRevenueChart(data){
 }
 
 function renderFlows(flows){
-  const n={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client',crosssell:'Cross-sell'};
+  const n={abandoned_cart:'Panier abandonné',upsell:'Upsell post-achat',winback:'Winback réactivation',review:"Demande d'avis",birthday:'Anniversaire client',crosssell:'Cross-sell'};
   const d=isTestMode
-    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min apres livraison',winback:'J+30, J+60, J+90 sans achat',review:'TEST : demande avis rapide',birthday:'TEST : message anniversaire',crosssell:'TEST : 5 min apres livraison'}
-    :{abandoned_cart:'Envoi a +30 min, +24h, +48h apres abandon',upsell:'Envoi a J+10 apres livraison (delai reception)',winback:'Envoi a J+30, J+60, J+90 sans achat',review:'Demande d avis J+15 apres livraison',birthday:'Message + promo le jour de l anniversaire',crosssell:'Suggestions produits J+14 apres livraison'};
+    ?{abandoned_cart:'TEST : 1 min, 2 min, 3 min',upsell:'TEST : 5 min après livraison',winback:'J+30, J+60, J+90 sans achat',review:'TEST : demande avis rapide',birthday:'TEST : message anniversaire',crosssell:'TEST : 5 min après livraison'}
+    :{abandoned_cart:'Envoi à +30 min, +24h, +48h après abandon',upsell:'Envoi à J+10 après livraison (délai réception)',winback:'Envoi à J+30, J+60, J+90 sans achat',review:"Demande d'avis J+15 après livraison",birthday:"Message + promo le jour de l'anniversaire",crosssell:'Suggestions produits J+14 après livraison'};
   const icons={abandoned_cart:'&#128722;',upsell:'&#127873;',winback:'&#128140;',review:'&#11088;',birthday:'&#127874;',crosssell:'&#128717;'};
   let h='';
   flows.forEach(f=>{
@@ -769,7 +801,7 @@ async function toggleFlow(n,e){
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open')}
 
 function openFlowModal(flowName){
-  const names={abandoned_cart:'Panier abandonne',upsell:'Upsell post-achat',winback:'Winback reactivation',review:'Demande d avis',birthday:'Anniversaire client',crosssell:'Cross-sell'};
+  const names={abandoned_cart:'Panier abandonné',upsell:'Upsell post-achat',winback:'Winback réactivation',review:"Demande d'avis",birthday:'Anniversaire client',crosssell:'Cross-sell'};
   document.getElementById('modalTitle').textContent=names[flowName]||flowName;
 
   const tplNames=FLOW_TEMPLATES[flowName]||[];
@@ -778,10 +810,10 @@ function openFlowModal(flowName){
     return found||{name:name,status:'UNKNOWN',components:[]};
   });
 
-  let h='<div class="warning-banner">&#9888; <div><strong>Propagation Meta</strong> — Toute modification de template est soumise a Meta pour validation. Delai : quelques minutes a 24h. Le template actuel reste actif pendant la review.</div></div>';
+  let h='<div class="warning-banner">&#9888; <div><strong>Propagation Meta</strong> — Toute modification de template est soumise à Meta pour validation. Délai : quelques minutes à 24h. Le template actuel reste actif pendant la review.</div></div>';
 
   if(matched.length===0){
-    h+='<div style="color:var(--text-secondary);padding:20px;text-align:center">Aucun template associe</div>';
+    h+='<div style="color:var(--text-secondary);padding:20px;text-align:center">Aucun template associé</div>';
   }
 
   matched.forEach((tpl,idx)=>{
@@ -807,7 +839,7 @@ function openFlowModal(flowName){
 
     h+='<div class="tpl-actions">'
       +'<button class="btn btn-secondary" onclick="toggleEdit('+idx+')">Modifier</button>'
-      +'<button class="btn btn-primary" id="tpl-save-'+idx+'" style="display:none" onclick="saveTemplate(\\''+tpl.id+'\\','+idx+',\\''+tpl.name+'\\')">Envoyer a Meta</button>'
+      +'<button class="btn btn-primary" id="tpl-save-'+idx+'" style="display:none" onclick="saveTemplate(\\''+tpl.id+'\\','+idx+',\\''+tpl.name+'\\')">Envoyer à Meta</button>'
       +'<span class="status-msg" id="tpl-status-'+idx+'"></span>'
       +'</div></div>';
   });
@@ -841,7 +873,7 @@ async function saveTemplate(templateId,idx,templateName){
 
   saveBtn.disabled=true;
   status.className='status-msg';
-  status.textContent='Envoi a Meta...';
+  status.textContent='Envoi à Meta...';
 
   try{
     const res=await fetch(SERVER+'/api/templates/'+templateId,{
@@ -852,11 +884,11 @@ async function saveTemplate(templateId,idx,templateName){
     const data=await res.json();
     if(data.success){
       status.className='status-msg ok';
-      status.textContent='Soumis a Meta ! En attente de validation (quelques min a 24h)';
+      status.textContent='Soumis à Meta ! En attente de validation (quelques min à 24h)';
       document.getElementById('tpl-view-'+idx).textContent=newBody;
     }else{
       status.className='status-msg err';
-      status.textContent='Erreur : '+(data.error||'echec');
+      status.textContent='Erreur : '+(data.error||'échec');
     }
   }catch(err){
     status.className='status-msg err';
@@ -870,12 +902,12 @@ function renderTemplateStats(tplStats, flowConv){
   const el=document.getElementById('templateStats');
 
   if(!tplStats||tplStats.length===0){
-    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucune donnee — les stats par template apparaitront apres les premiers envois.</div>';
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:16px">Aucune donnée — les stats par template apparaîtront après les premiers envois.</div>';
     return;
   }
 
-  const flowNames={abandoned_cart:'Panier abandonne',upsell:'Upsell',winback:'Winback',review:'Demande avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
-  const stepNames={abandoned_cart:{1:'Rappel 30min',2:'Rappel 24h',3:'Promo 48h'},upsell:{1:'Recommendation'},winback:{1:'Nouveautes J+30',2:'-15% J+60',3:'-20% J+90'},review:{1:'Demande avis J+15'},birthday:{1:'Voeux'}};
+  const flowNames={abandoned_cart:'Panier abandonné',upsell:'Upsell',winback:'Winback',review:'Demande avis',birthday:'Anniversaire',crosssell:'Cross-sell'};
+  const stepNames={abandoned_cart:{1:'Rappel 30min',2:'Rappel 24h',3:'Promo 48h'},upsell:{1:'Recommandation'},winback:{1:'Nouveautés J+30',2:'-15% J+60',3:'-20% J+90'},review:{1:'Demande avis J+15'},birthday:{1:'Vœux'}};
 
   // Group by flow
   const byFlow={};
@@ -890,12 +922,12 @@ function renderTemplateStats(tplStats, flowConv){
   // Flow conversion KPIs (abandoned_cart)
   if(flowConv&&flowConv.abandoned_cart){
     const ac=flowConv.abandoned_cart;
-    h+='<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--teal);margin-bottom:10px">&#128722; Panier abandonne — Funnel de conversion</div>';
+    h+='<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--teal);margin-bottom:10px">&#128722; Panier abandonné — Funnel de conversion</div>';
     h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">';
-    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Detectes</div><div style="font-size:22px;font-weight:700;color:var(--teal)">'+ac.total_checkouts+'</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Détectés</div><div style="font-size:22px;font-weight:700;color:var(--teal)">'+ac.total_checkouts+'</div></div>';
     h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Convertis</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.converted_checkouts+'</div></div>';
     h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Taux conversion</div><div style="font-size:22px;font-weight:700;color:'+(ac.conversion_rate>5?'var(--success)':'var(--warning)')+'">'+ac.conversion_rate+'%</div></div>';
-    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA recupere</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.revenue.toFixed(0)+' EUR</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA récupéré</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.revenue.toFixed(0)+' EUR</div></div>';
     h+='</div>';
 
     // Steps funnel
@@ -907,8 +939,8 @@ function renderTemplateStats(tplStats, flowConv){
         h+='<div style="flex:1;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">';
         h+='<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">'+sName+'</div>';
         h+='<div style="font-size:18px;font-weight:700;color:var(--teal)">'+st.sent+'</div>';
-        h+='<div style="font-size:10px;color:var(--text-secondary)">envoyes</div>';
-        if(st.cancelled>0) h+='<div style="font-size:10px;color:var(--success);margin-top:2px">'+st.cancelled+' annules ('+cancelPct+'% convertis avant)</div>';
+        h+='<div style="font-size:10px;color:var(--text-secondary)">envoyés</div>';
+        if(st.cancelled>0) h+='<div style="font-size:10px;color:var(--success);margin-top:2px">'+st.cancelled+' annulés ('+cancelPct+'% convertis avant)</div>';
         h+='</div>';
       });
       h+='</div>';
@@ -917,8 +949,8 @@ function renderTemplateStats(tplStats, flowConv){
   }
 
   // Detail table per template
-  h+='<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px">Detail par template</div>';
-  h+='<table><thead><tr><th>Flow</th><th>Step</th><th>Template</th><th>Envoyes</th><th>Echoues</th><th>Annules</th><th>En attente</th><th>Taux echec</th><th>Taux conv.</th><th>CA recupere</th><th>Cout</th></tr></thead><tbody>';
+  h+='<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px">Détail par template</div>';
+  h+='<table><thead><tr><th>Flow</th><th>Step</th><th>Template</th><th>Envoyés</th><th>Échoués</th><th>Annulés</th><th>En attente</th><th>Taux échec</th><th>Taux conv.</th><th>CA récupéré</th><th>Coût</th></tr></thead><tbody>';
 
   for(const[flow,templates]of Object.entries(byFlow)){
     templates.sort((a,b)=>a.step-b.step);
@@ -956,7 +988,7 @@ function renderABTest(data){
   const total=a.sent+b.sent;
 
   if(total===0){
-    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:10px">Pas encore de donnees — le test A/B commence automatiquement avec les prochains paniers abandonnes. 50% recevront les images produit, 50% uniquement le template texte.</div>';
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:10px">Pas encore de données — le test A/B commence automatiquement avec les prochains paniers abandonnés. 50% recevront les images produit, 50% uniquement le template texte.</div>';
     return;
   }
 
@@ -982,7 +1014,7 @@ function renderABTest(data){
   h+='<div style="border:2px solid '+(aWin?'var(--success)':'var(--border)')+';border-radius:10px;padding:16px'+(aWin?';background:#f0fdf4':'')+'">';
   h+='<div style="font-weight:700;font-size:14px;margin-bottom:8px">&#128247; Variante A : Avec images produit</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">';
-  h+='<div>Envoyes : <strong>'+a.sent+'</strong></div>';
+  h+='<div>Envoyés : <strong>'+a.sent+'</strong></div>';
   h+='<div>Convertis : <strong style="color:var(--success)">'+a.converted+'</strong></div>';
   h+='<div>Taux conversion : <strong style="font-size:18px;color:'+(aWin?'var(--success)':'var(--text)')+'">'+a.conversion_rate+'%</strong></div>';
   h+='<div>Revenu : <strong>'+a.revenue.toFixed(0)+' EUR</strong></div>';
@@ -995,7 +1027,7 @@ function renderABTest(data){
   h+='<div style="border:2px solid '+(bWin?'var(--success)':'var(--border)')+';border-radius:10px;padding:16px'+(bWin?';background:#f0fdf4':'')+'">';
   h+='<div style="font-weight:700;font-size:14px;margin-bottom:8px">&#128172; Variante B : Template seul (sans images)</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">';
-  h+='<div>Envoyes : <strong>'+b.sent+'</strong></div>';
+  h+='<div>Envoyés : <strong>'+b.sent+'</strong></div>';
   h+='<div>Convertis : <strong style="color:var(--success)">'+b.converted+'</strong></div>';
   h+='<div>Taux conversion : <strong style="font-size:18px;color:'+(bWin?'var(--success)':'var(--text)')+'">'+b.conversion_rate+'%</strong></div>';
   h+='<div>Revenu : <strong>'+b.revenue.toFixed(0)+' EUR</strong></div>';
@@ -1010,10 +1042,10 @@ function renderABTest(data){
     h+='<div style="margin-top:14px"><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Progression : '+total+' / 500 envois (250 par variante)</div>';
     h+='<div style="background:#e8ecf0;border-radius:4px;height:6px;overflow:hidden"><div style="background:var(--teal);height:100%;width:'+pct+'%;border-radius:4px;transition:width 0.5s"></div></div></div>';
   }else if(winner==='tie'){
-    h+='<div style="margin-top:12px;font-size:12px;color:var(--warning);text-align:center;font-weight:600">Egalite — continuez le test pour plus de donnees</div>';
+    h+='<div style="margin-top:12px;font-size:12px;color:var(--warning);text-align:center;font-weight:600">Égalité — continuez le test pour plus de données</div>';
   }
 
-  h+='<div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">&#128279; Attribution : chaque lien WhatsApp contient un UTM (utm_source=whatsapp). Les clics sur les liens sont trackes pour mesurer le taux de clic et attribuer les conversions.</div>';
+  h+='<div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">&#128279; Attribution : chaque lien WhatsApp contient un UTM (utm_source=whatsapp). Les clics sur les liens sont trackés pour mesurer le taux de clic et attribuer les conversions.</div>';
 
   el.innerHTML=h;
 }
@@ -1021,7 +1053,7 @@ function renderABTest(data){
 // ─── Data tables ────────────────────────────────
 function renderCheckouts(data){
   const tb=document.querySelector('#checkoutsTable tbody');
-  if(!data||data.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-secondary)">Aucun panier detecte</td></tr>';return;}
+  if(!data||data.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-secondary)">Aucun panier détecté</td></tr>';return;}
   tb.innerHTML=data.map(c=>{
     let items='-';
     try{const p=typeof c.line_items==='string'?JSON.parse(c.line_items||'[]'):(c.line_items||[]);items=p.map(i=>i.title+(i.quantity>1?' x'+i.quantity:'')).join(', ')||'-'}catch(e){}
@@ -1084,11 +1116,11 @@ function renderContacts(data){
 
 function openAddContactModal(){
   document.getElementById('modalTitle').textContent='Ajouter un contact';
-  let h='<div class="form-row"><div class="form-group"><label>Prenom</label><input type="text" id="ctFirstName" placeholder="Jean"></div>';
+  let h='<div class="form-row"><div class="form-group"><label>Prénom</label><input type="text" id="ctFirstName" placeholder="Jean"></div>';
   h+='<div class="form-group"><label>Nom</label><input type="text" id="ctLastName" placeholder="Dupont"></div></div>';
-  h+='<div class="form-group"><label>Telephone *</label><input type="tel" id="ctPhone" placeholder="+33612345678 ou 0612345678"></div>';
+  h+='<div class="form-group"><label>Téléphone *</label><input type="tel" id="ctPhone" placeholder="+33612345678 ou 0612345678"></div>';
   h+='<div class="form-group"><label>Email</label><input type="email" id="ctEmail" placeholder="jean@example.com"></div>';
-  h+='<div class="form-group"><label>Tags (separes par des virgules)</label><input type="text" id="ctTags" placeholder="vip, prospect, newsletter"></div>';
+  h+='<div class="form-group"><label>Tags (séparés par des virgules)</label><input type="text" id="ctTags" placeholder="vip, prospect, newsletter"></div>';
   h+='<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="saveNewContact()">Ajouter</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="contactFormStatus"></span></div>';
   document.getElementById('modalBody').innerHTML=h;
   document.getElementById('modalOverlay').classList.add('open');
@@ -1097,9 +1129,9 @@ function openAddContactModal(){
 
 function openEditContactModal(id,fn,ln,ph,em,tg){
   document.getElementById('modalTitle').textContent='Modifier le contact';
-  let h='<div class="form-row"><div class="form-group"><label>Prenom</label><input type="text" id="ctFirstName" value="'+escHtml(fn)+'"></div>';
+  let h='<div class="form-row"><div class="form-group"><label>Prénom</label><input type="text" id="ctFirstName" value="'+escHtml(fn)+'"></div>';
   h+='<div class="form-group"><label>Nom</label><input type="text" id="ctLastName" value="'+escHtml(ln)+'"></div></div>';
-  h+='<div class="form-group"><label>Telephone *</label><input type="tel" id="ctPhone" value="'+escHtml(ph)+'"></div>';
+  h+='<div class="form-group"><label>Téléphone *</label><input type="tel" id="ctPhone" value="'+escHtml(ph)+'"></div>';
   h+='<div class="form-group"><label>Email</label><input type="email" id="ctEmail" value="'+escHtml(em)+'"></div>';
   h+='<div class="form-group"><label>Tags</label><input type="text" id="ctTags" value="'+escHtml(tg)+'"></div>';
   h+='<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="updateContact('+id+')">Enregistrer</button><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><span class="status-msg" id="contactFormStatus"></span></div>';
@@ -1116,17 +1148,17 @@ async function saveNewContact(){
     email:document.getElementById('ctEmail').value.trim(),
     tags:document.getElementById('ctTags').value.trim()
   };
-  if(!data.phone){status.className='status-msg err';status.textContent='Le telephone est obligatoire';return;}
+  if(!data.phone){status.className='status-msg err';status.textContent='Le téléphone est obligatoire';return;}
   try{
     const res=await fetch(SERVER+'/api/contacts',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)
     });
     const r=await res.json();
     if(r.success){
-      status.className='status-msg ok';status.textContent='Contact ajoute !';
+      status.className='status-msg ok';status.textContent='Contact ajouté !';
       setTimeout(()=>{closeModal();loadContacts();},800);
     }else{
-      status.className='status-msg err';status.textContent='Erreur : '+(r.error||'echec');
+      status.className='status-msg err';status.textContent='Erreur : '+(r.error||'échec');
     }
   }catch(e){status.className='status-msg err';status.textContent='Erreur : '+e.message;}
 }
@@ -1146,10 +1178,10 @@ async function updateContact(id){
     });
     const r=await res.json();
     if(r.success){
-      status.className='status-msg ok';status.textContent='Modifie !';
+      status.className='status-msg ok';status.textContent='Modifié !';
       setTimeout(()=>{closeModal();loadContacts();},800);
     }else{
-      status.className='status-msg err';status.textContent='Erreur : '+(r.error||'echec');
+      status.className='status-msg err';status.textContent='Erreur : '+(r.error||'échec');
     }
   }catch(e){status.className='status-msg err';status.textContent='Erreur : '+e.message;}
 }
@@ -1169,9 +1201,9 @@ function renderCampaigns(data){
     el.innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:10px">Aucune campagne — cliquez sur "+ Nouvelle campagne" pour commencer</div>';
     return;
   }
-  let h='<table><thead><tr><th>Date</th><th>Nom</th><th>Template</th><th>Segment</th><th>Cibles</th><th>Envoyes</th><th>Echecs</th><th>Cout</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Date</th><th>Nom</th><th>Template</th><th>Segment</th><th>Cibles</th><th>Envoyés</th><th>Échecs</th><th>Coût</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
   data.forEach(c=>{
-    const statusMap={draft:'En attente',sending:'Envoi...',sent:'Termine',completed:'Termine',cancelled:'Annule'};
+    const statusMap={draft:'En attente',sending:'Envoi...',sent:'Terminé',completed:'Terminé',cancelled:'Annulé'};
     const statusClass={draft:'queued',sending:'queued',sent:'sent',completed:'sent',cancelled:'cancelled'};
     const cost=(c.sent_count*waCost).toFixed(2);
     h+='<tr><td>'+fmtDate(c.created_at)+'</td><td style="font-weight:600">'+escHtml(c.name)+'</td><td style="font-size:12px">'+escHtml(c.template)+'</td><td style="font-size:12px">'+(c.target_filter||'all')+'</td><td style="text-align:center">'+c.target_count+'</td><td style="text-align:center;color:var(--success);font-weight:600">'+c.sent_count+'</td><td style="text-align:center;color:var(--danger)">'+c.failed_count+'</td><td style="font-weight:600;color:var(--danger)">'+cost+' EUR</td><td>'+badge(statusClass[c.status]||c.status)+'</td>';
@@ -1208,17 +1240,17 @@ async function openCampaignModal(){
 
   h+='<div class="form-group"><label>Nom de la campagne</label><input type="text" id="campaignName" placeholder="Ex: Soldes printemps 2026"></div>';
 
-  h+='<div class="form-row"><div class="form-group"><label>Template Meta (approuve)</label><select id="campaignTemplate">';
-  h+=tplOptions||'<option value="">Aucun template approuve</option>';
+  h+='<div class="form-row"><div class="form-group"><label>Template Meta (approuvé)</label><select id="campaignTemplate">';
+  h+=tplOptions||'<option value="">Aucun template approuvé</option>';
   h+='</select></div>';
 
   h+='<div class="form-group"><label>Segment cible</label><select id="campaignSegment" onchange="updateCampaignCount()">';
   h+=segOptions||'<option value="all">Tous</option>';
   h+='</select></div></div>';
 
-  h+='<div class="form-group"><label>Date/heure d envoi (optionnel)</label><input type="datetime-local" id="campaignSchedule"><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Laisser vide pour envoyer immediatement</div></div>';
+  h+='<div class="form-group"><label>Date/heure d&#39;envoi (optionnel)</label><input type="datetime-local" id="campaignSchedule"><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Laisser vide pour envoyer immédiatement</div></div>';
 
-  h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px" id="campaignInfo">&#9989; Selectionnez un segment pour voir le nombre de destinataires</div>';
+  h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px" id="campaignInfo">&#9989; Sélectionnez un segment pour voir le nombre de destinataires</div>';
 
   h+='<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:12px;color:#991b1b;margin-bottom:16px" id="campaignCostInfo"></div>';
 
@@ -1236,7 +1268,7 @@ async function updateCampaignCount(){
     const count=contacts.length;
     const cost=(count*waCost).toFixed(2);
     document.getElementById('campaignInfo').innerHTML='&#9989; <strong>'+count+' destinataire'+(count!==1?'s':'')+'</strong> dans ce segment';
-    document.getElementById('campaignCostInfo').innerHTML='&#128176; Cout estime : <strong>'+cost+' EUR</strong> ('+(waCost*100).toFixed(1)+' cts x '+count+' messages)';
+    document.getElementById('campaignCostInfo').innerHTML='&#128176; Coût estimé : <strong>'+cost+' EUR</strong> ('+(waCost*100).toFixed(1)+' cts x '+count+' messages)';
   }catch(e){}
 }
 
@@ -1248,8 +1280,8 @@ async function sendCampaign(){
   const status=document.getElementById('campaignStatus');
   const btn=document.getElementById('sendCampaignBtn');
 
-  if(!name){status.className='status-msg err';status.textContent='Donnez un nom a la campagne';return;}
-  if(!template){status.className='status-msg err';status.textContent='Selectionnez un template';return;}
+  if(!name){status.className='status-msg err';status.textContent='Donnez un nom à la campagne';return;}
+  if(!template){status.className='status-msg err';status.textContent='Sélectionnez un template';return;}
 
   btn.disabled=true;
   status.className='status-msg';
@@ -1271,7 +1303,7 @@ async function sendCampaign(){
       setTimeout(()=>{closeModal();loadAll();},1500);
     }else{
       status.className='status-msg err';
-      status.textContent='Erreur : '+(data.error||'echec');
+      status.textContent='Erreur : '+(data.error||'échec');
     }
   }catch(err){
     status.className='status-msg err';
@@ -1294,13 +1326,13 @@ async function loadIncoming(){
     const data=await api('/api/incoming-messages');
     const tb=document.querySelector('#incomingTable tbody');
     if(!data||data.length===0){
-      tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Aucune reponse recue</td></tr>';
+      tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Aucune réponse reçue</td></tr>';
       return;
     }
     tb.innerHTML=data.map(m=>{
       const body=(m.body||m.message||'').toUpperCase();
       const isOptout=body.includes('STOP')||body.includes('ARRET')||body.includes('DESABONNER');
-      const statut=isOptout?'<span class="badge optout">Opt-out</span>':'<span class="badge received">Recu</span>';
+      const statut=isOptout?'<span class="badge optout">Opt-out</span>':'<span class="badge received">Reçu</span>';
       return '<tr><td>'+fmtDate(m.received_at||m.created_at)+'</td><td style="font-weight:500">'+escHtml(m.phone||m.from)+'</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(m.body||m.message||'')+'</td><td>'+statut+'</td></tr>';
     }).join('');
   }catch(e){
@@ -1326,7 +1358,7 @@ async function openTimelineModal(phone,name){
     all.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
     if(all.length===0){
-      document.getElementById('modalBody').innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:20px">Aucun message pour ce numero</div>';
+      document.getElementById('modalBody').innerHTML='<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:20px">Aucun message pour ce numéro</div>';
       return;
     }
 
@@ -1335,7 +1367,7 @@ async function openTimelineModal(phone,name){
       h+='<div class="timeline-item">';
       h+='<div class="timeline-dot '+(m.type==='out'?'out':'in')+'"></div>';
       h+='<div style="flex:1">';
-      h+='<div style="font-size:11px;color:var(--text-secondary)">'+fmtDate(m.date)+' — '+(m.type==='out'?'Envoye':'Recu')+'</div>';
+      h+='<div style="font-size:11px;color:var(--text-secondary)">'+fmtDate(m.date)+' — '+(m.type==='out'?'Envoyé':'Reçu')+'</div>';
       if(m.type==='out'){
         h+='<div style="font-weight:500">'+escHtml(m.flow)+' / '+escHtml(m.template)+'</div>';
         h+='<div>'+badge(m.status)+(m.error?' <span style="font-size:11px;color:var(--danger)">'+escHtml(m.error)+'</span>':'')+'</div>';

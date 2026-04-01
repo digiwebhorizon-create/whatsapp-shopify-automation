@@ -569,6 +569,18 @@ function getAllCustomersWithPhone() {
 
 // ─── Contacts (manual + auto) ───────────────────
 function addContact(contact) {
+  // Check if contact with same phone already exists
+  const existing = db.prepare('SELECT id FROM contacts WHERE phone = ?').get(contact.phone);
+  if (existing) {
+    // Update existing contact with new info (don't duplicate)
+    db.prepare(`
+      UPDATE contacts SET first_name = COALESCE(NULLIF(?, ''), first_name),
+        last_name = COALESCE(NULLIF(?, ''), last_name),
+        email = COALESCE(NULLIF(?, ''), email)
+      WHERE id = ?
+    `).run(contact.first_name || '', contact.last_name || '', contact.email || '', existing.id);
+    return existing.id;
+  }
   const result = db.prepare(`
     INSERT INTO contacts (first_name, last_name, phone, email, tags, source, shop)
     VALUES (?, ?, ?, ?, ?, ?, ?)
