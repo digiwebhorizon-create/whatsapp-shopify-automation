@@ -84,14 +84,53 @@ function cleanPhone(phone) {
   return cleaned;
 }
 
-// Check if current time is within sending hours (9h-21h Europe/Paris)
+// Check if current time is within sending hours (8h-21h Europe/Paris)
 // In TEST_MODE, always return true
 function isWithinSendingHours() {
   if (process.env.TEST_MODE === 'true') return true;
   const now = new Date();
   const parisTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const hour = parisTime.getHours();
-  return hour >= 9 && hour < 21;
+  return hour >= 8 && hour < 21;
 }
 
-module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours };
+// ─── Meta Template Management ────────────────────
+const WABA_ID = process.env.WA_BUSINESS_ACCOUNT_ID || '1461913525522653';
+
+async function getTemplates() {
+  const token = WA_TOKEN;
+  if (!token) return { success: false, error: 'No token' };
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v22.0/${WABA_ID}/message_templates?fields=id,name,status,category,language,components&limit=50`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    if (data.data) return { success: true, templates: data.data };
+    return { success: false, error: data.error?.message || JSON.stringify(data) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function updateTemplate(templateId, components) {
+  const token = WA_TOKEN;
+  if (!token) return { success: false, error: 'No token' };
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v22.0/${templateId}`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ components })
+      }
+    );
+    const data = await response.json();
+    if (data.success || response.ok) return { success: true, data };
+    return { success: false, error: data.error?.message || JSON.stringify(data) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours, getTemplates, updateTemplate };

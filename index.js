@@ -146,6 +146,23 @@ app.get('/api/hourly-distribution', (req, res) => {
   res.json(db.getHourlyDistribution());
 });
 
+// ─── Meta Templates API ─────────────────────────
+app.get('/api/templates', async (req, res) => {
+  const result = await whatsapp.getTemplates();
+  if (result.success) {
+    res.json(result.templates);
+  } else {
+    res.status(500).json({ error: result.error });
+  }
+});
+
+app.put('/api/templates/:id', async (req, res) => {
+  const { components } = req.body;
+  if (!components) return res.status(400).json({ error: 'Missing components' });
+  const result = await whatsapp.updateTemplate(req.params.id, components);
+  res.json(result);
+});
+
 // ─── Dashboard HTML ─────────────────────────────
 const dashboardServerUrl = process.env.SERVER_URL || 'https://panier.le-bourlingueur.com';
 app.get('/dashboard', (req, res) => {
