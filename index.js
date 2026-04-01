@@ -17,28 +17,39 @@ const SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_pro
 app.use(express.json({ limit: '10mb' }));
 
 // ─── Dashboard Auth Middleware ───────────────────
+// DASHBOARD_EMAILS: comma-separated list of authorized emails
+const DASHBOARD_EMAILS = (process.env.DASHBOARD_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || '';
 
+function isValidLogin(email, password) {
+  if (!DASHBOARD_PASSWORD) return true; // No password = open access
+  if (password !== DASHBOARD_PASSWORD) return false;
+  if (DASHBOARD_EMAILS.length === 0) return true; // No email list = any email OK
+  return DASHBOARD_EMAILS.includes(email.toLowerCase());
+}
+
 function requireAuth(req, res, next) {
-  if (!DASHBOARD_PASSWORD) return next(); // No password set = open access
-  // Check session cookie
+  if (!DASHBOARD_PASSWORD) return next();
   const cookie = req.headers.cookie || '';
   const match = cookie.match(/dash_auth=([^;]+)/);
-  if (match && match[1] === Buffer.from(DASHBOARD_PASSWORD).toString('base64')) return next();
-  // Check auth header (for API calls from dashboard JS)
-  const authHeader = req.headers['x-dash-auth'];
-  if (authHeader === DASHBOARD_PASSWORD) return next();
+  if (match) {
+    try {
+      const decoded = Buffer.from(match[1], 'base64').toString();
+      const [email, pass] = decoded.split(':');
+      if (isValidLogin(email, pass)) return next();
+    } catch (e) {}
+  }
   res.status(401).json({ error: 'Unauthorized' });
 }
 
 app.post('/api/login', (req, res) => {
-  const { password } = req.body;
-  if (!DASHBOARD_PASSWORD || password === DASHBOARD_PASSWORD) {
-    const token = Buffer.from(DASHBOARD_PASSWORD || 'open').toString('base64');
+  const { email, password } = req.body;
+  if (isValidLogin(email || '', password || '')) {
+    const token = Buffer.from((email || '') + ':' + (password || '')).toString('base64');
     res.setHeader('Set-Cookie', `dash_auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`);
     res.json({ success: true });
   } else {
-    res.status(401).json({ error: 'Mot de passe incorrect' });
+    res.status(401).json({ error: 'Email ou mot de passe incorrect' });
   }
 });
 
@@ -130,55 +141,55 @@ app.get('/api/stats', requireAuth, (req, res) => {
   res.json({ ...db.getStats(from, to), test_mode: process.env.TEST_MODE === 'true', wa_cost: parseFloat(process.env.WA_COST_PER_MESSAGE || '0.08') });
 });
 
-app.get('/api/messages', (req, res) => {
+app.get('/api/messages', requireAuth, (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   const { from, to } = req.query;
   res.json(db.getRecentMessages(limit, from, to));
 });
 
-app.get('/api/flows', (req, res) => {
+app.get('/api/flows', requireAuth, (req, res) => {
   res.json(db.getFlowSettings());
 });
 
-app.post('/api/flows/:flowName/toggle', (req, res) => {
+app.post('/api/flows/:flowName/toggle', requireAuth, (req, res) => {
   const { flowName } = req.params;
   const { enabled } = req.body;
   db.setFlowEnabled(flowName, enabled);
   res.json({ flowName, enabled });
 });
 
-app.get('/api/messages-by-flow', (req, res) => {
+app.get('/api/messages-by-flow', requireAuth, (req, res) => {
   const { from, to } = req.query;
   res.json(db.getMessagesByFlow(from, to));
 });
 
-app.get('/api/messages-by-day', (req, res) => {
+app.get('/api/messages-by-day', requireAuth, (req, res) => {
   const days = parseInt(req.query.days) || 30;
   res.json(db.getMessagesByDay(days));
 });
 
-app.get('/api/checkouts', (req, res) => {
+app.get('/api/checkouts', requireAuth, (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   const { from, to } = req.query;
   res.json(db.getCheckoutsDetailed(limit, from, to));
 });
 
-app.get('/api/messages-by-template', (req, res) => {
+app.get('/api/messages-by-template', requireAuth, (req, res) => {
   res.json(db.getMessagesByTemplate());
 });
 
-app.get('/api/daily-revenue', (req, res) => {
+app.get('/api/daily-revenue', requireAuth, (req, res) => {
   const days = parseInt(req.query.days) || 30;
   res.json(db.getDailyRevenue(days));
 });
 
-app.get('/api/hourly-distribution', (req, res) => {
+app.get('/api/hourly-distribution', requireAuth, (req, res) => {
   const { from, to } = req.query;
   res.json(db.getHourlyDistribution(from, to));
 });
 
 // ─── Meta Templates API ─────────────────────────
-app.get('/api/templates', async (req, res) => {
+app.get('/api/templates', requireAuth, async (req, res) => {
   const result = await whatsapp.getTemplates();
   if (result.success) {
     res.json(result.templates);
@@ -187,7 +198,7 @@ app.get('/api/templates', async (req, res) => {
   }
 });
 
-app.put('/api/templates/:id', async (req, res) => {
+app.put('/api/templates/:id', requireAuth, async (req, res) => {
   const { components } = req.body;
   if (!components) return res.status(400).json({ error: 'Missing components' });
   const result = await whatsapp.updateTemplate(req.params.id, components);
@@ -322,13 +333,13 @@ app.get('/r/:id', (req, res) => {
 });
 
 // Clear all data (debug)
-app.post('/api/clear', (req, res) => {
+app.post('/api/clear', requireAuth, (req, res) => {
   db.clearAll();
   res.json({ ok: true });
 });
 
 // Force process queue (debug)
-app.post('/api/process-queue', async (req, res) => {
+app.post('/api/process-queue', requireAuth, async (req, res) => {
   try {
     const pending = db.getPendingMessages();
     console.log(`[DEBUG] Pending messages: ${pending.length}`);

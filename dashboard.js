@@ -262,6 +262,7 @@ tr:hover td { background: #f8fafb; }
     <div style="font-size:32px;margin-bottom:12px">LB</div>
     <h2>Le Bourlingueur</h2>
     <div class="subtitle">Marketing WhatsApp — Acces Dashboard</div>
+    <input type="email" id="loginEmail" placeholder="Email" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
     <input type="password" id="loginPassword" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">Se connecter</button>
     <div class="login-error" id="loginError"></div>
@@ -445,15 +446,17 @@ async function checkAuth(){
 function showLogin(){
   document.getElementById('loginOverlay').classList.remove('hidden');
   needsAuth=true;
-  setTimeout(()=>document.getElementById('loginPassword').focus(),100);
+  setTimeout(()=>document.getElementById('loginEmail').focus(),100);
 }
 async function doLogin(){
+  const em=document.getElementById('loginEmail').value;
   const pw=document.getElementById('loginPassword').value;
   const err=document.getElementById('loginError');
+  if(!em||!pw){err.textContent='Remplissez tous les champs';return;}
   try{
     const res=await fetch(SERVER+'/api/login',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({password:pw})
+      body:JSON.stringify({email:em,password:pw})
     });
     if(res.ok){
       document.getElementById('loginOverlay').classList.add('hidden');
