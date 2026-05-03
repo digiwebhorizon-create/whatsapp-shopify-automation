@@ -546,7 +546,51 @@ app.get('/api/health', requireAuth, async (req, res) => {
     note: 'Configure in Meta Business Suite → WhatsApp → Configuration → Webhook URL'
   };
 
+  // 6. WhatsApp config — what's actually used at runtime (helps diagnose silent misroutes)
+  checks.whatsapp_config = {
+    phone_number_id_in_use: whatsapp.getPhoneNumberIdInUse(),
+    phone_number_id_env_set: !!process.env.WA_PHONE_NUMBER_ID,
+    using_old_test_number: whatsapp.isUsingOldTestNumber(),
+    wa_token_set: whatsapp.hasToken(),
+    waba_id: process.env.WA_BUSINESS_ACCOUNT_ID || '1461913525522653 (default)',
+    server_url: process.env.SERVER_URL || 'not_set',
+    expected_phone_number_id: '1087927197730757 (+33 6 52 97 26 34)'
+  };
+
+  // 7. Recent failed messages (last 10) — helps diagnose Meta send errors
+  try {
+    const recent = db.getRecentMessages(50);
+    checks.recent_failed = recent
+      .filter(m => m.status === 'failed' || m.error)
+      .slice(0, 10)
+      .map(m => ({ id: m.id, phone: m.phone, template: m.template, status: m.status, error: m.error, created_at: m.created_at }));
+  } catch (err) {
+    checks.recent_failed = { error: err.message };
+  }
+
   res.json(checks);
+});
+
+// ─── End-to-end test send (real prod message to a phone number) ───
+// POST /api/test-send  body: { phone: "+33...", template: "panier_rappel_1" (optional) }
+// Returns Meta's full response so we know WHY it fails if it fails.
+app.post('/api/test-send', requireAuth, async (req, res) => {
+  const { phone, template } = req.body || {};
+  if (!phone) return res.status(400).json({ error: 'phone is required' });
+  const tpl = template || 'panier_rappel_1';
+
+  const components = [
+    { type: 'body', parameters: [{ type: 'text', text: 'Damien' }] },
+    { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: 'test123' }] }
+  ];
+
+  const result = await whatsapp.sendTemplate(phone, tpl, 'fr', components);
+  res.json({
+    ok: !!result.success,
+    phone_number_id_used: whatsapp.getPhoneNumberIdInUse(),
+    template_tried: tpl,
+    meta_response: result
+  });
 });
 
 // ─── Create missing Meta templates ──────────────

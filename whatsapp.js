@@ -1,7 +1,17 @@
 // WhatsApp Cloud API client
 
-const PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID || '988054214398025';
+// Production phone number ID for +33 6 52 97 26 34
+// If WA_PHONE_NUMBER_ID env var is missing, fall back to prod (NOT the old test number 988054214398025)
+const PHONE_NUMBER_ID_PROD = '1087927197730757';
+const PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID || PHONE_NUMBER_ID_PROD;
 const WA_TOKEN = process.env.WA_TOKEN;
+
+if (!process.env.WA_PHONE_NUMBER_ID) {
+  console.warn(`[WA] WA_PHONE_NUMBER_ID env var not set, using prod fallback: ${PHONE_NUMBER_ID_PROD}`);
+}
+if (PHONE_NUMBER_ID === '988054214398025') {
+  console.error('[WA] CRITICAL: WA_PHONE_NUMBER_ID is set to the OLD TEST number. Templates approved for prod will NOT work. Set it to 1087927197730757.');
+}
 
 const API_URL = `https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`;
 
@@ -153,4 +163,17 @@ async function createTemplate(name, category, language, components) {
   }
 }
 
-module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours, getTemplates, updateTemplate, createTemplate };
+// Export the resolved phone number id so /api/health can show what's actually used at runtime
+function getPhoneNumberIdInUse() {
+  return PHONE_NUMBER_ID;
+}
+
+function isUsingOldTestNumber() {
+  return PHONE_NUMBER_ID === '988054214398025';
+}
+
+function hasToken() {
+  return !!WA_TOKEN;
+}
+
+module.exports = { sendTemplate, sendText, sendImage, isWithinSendingHours, getTemplates, updateTemplate, createTemplate, getPhoneNumberIdInUse, isUsingOldTestNumber, hasToken };
