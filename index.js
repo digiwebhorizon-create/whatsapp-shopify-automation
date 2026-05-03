@@ -59,6 +59,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'running', ...stats });
 });
 
+// Public diag — non-sensitive runtime config so we can verify deploys without login
+app.get('/health/wa-config', (req, res) => {
+  res.json({
+    phone_number_id_in_use: whatsapp.getPhoneNumberIdInUse(),
+    expected_prod_phone_number_id: '1087927197730757',
+    using_old_test_number: whatsapp.isUsingOldTestNumber(),
+    wa_token_set: whatsapp.hasToken(),
+    wa_phone_env_set: !!process.env.WA_PHONE_NUMBER_ID,
+    test_mode: process.env.TEST_MODE === 'true',
+    sending_hours_now: whatsapp.isWithinSendingHours(),
+    server_url: process.env.SERVER_URL || 'not_set',
+    pending_queue: db.getPendingMessages().length
+  });
+});
+
 // ─── Shopify OAuth ───────────────────────────────
 app.get('/', (req, res) => {
   const { shop } = req.query;
