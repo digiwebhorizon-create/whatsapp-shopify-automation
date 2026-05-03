@@ -160,6 +160,47 @@ function init() {
     console.log('[DB] Added delivery_status column');
   } catch (e) { /* column already exists */ }
 
+  // ─── WhatsApp attribution columns (added 2026-05) ───
+  // Enrich the existing redirects + redirect_clicks tables so we can
+  // tie a click on /r/:shortId back to the recipient phone, the
+  // originating message and checkout — and ultimately attribute the
+  // resulting Shopify order to the WhatsApp campaign.
+  for (const stmt of [
+    "ALTER TABLE redirects ADD COLUMN phone TEXT",
+    "ALTER TABLE redirects ADD COLUMN checkout_id TEXT",
+    "ALTER TABLE redirects ADD COLUMN flow TEXT",
+    "ALTER TABLE redirects ADD COLUMN step INTEGER",
+    "ALTER TABLE redirects ADD COLUMN message_id INTEGER",
+    "ALTER TABLE redirect_clicks ADD COLUMN phone TEXT",
+    "ALTER TABLE redirect_clicks ADD COLUMN checkout_id TEXT",
+    "ALTER TABLE redirect_clicks ADD COLUMN message_id INTEGER",
+  ]) {
+    try { db.prepare(stmt).run(); } catch (e) { /* already exists */ }
+  }
+
+  // Orders attributed to a WhatsApp click (within attribution window)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wa_attributed_orders (
+      order_id TEXT PRIMARY KEY,
+      shop TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      checkout_id TEXT,
+      redirect_id TEXT,
+      message_id INTEGER,
+      flow TEXT,
+      template TEXT,
+      order_total REAL,
+      currency TEXT,
+      clicked_at TEXT,
+      ordered_at TEXT,
+      attribution_window_minutes INTEGER,
+      attributed_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_wa_attr_phone ON wa_attributed_orders(phone);
+    CREATE INDEX IF NOT EXISTS idx_wa_attr_ordered ON wa_attributed_orders(ordered_at);
+  `);
+
   console.log('[DB] Tables created');
 }
 
@@ -387,8 +428,17 @@ function updateWinbackStage(customerId, stage) {
 }
 
 // ─── Redirects (short URLs) ─────────────────────
-function saveRedirect(id, url) {
-  db.prepare('INSERT OR REPLACE INTO redirects (id, url) VALUES (?, ?)').run(id, url);
+function saveRedirect(id, url, meta) {
+  // Backward compat: if no meta provided, just persist id+url like before
+  const m = meta || {};
+  db.prepare(`
+    INSERT OR REPLACE INTO redirects (id, url, phone, checkout_id, flow, step, message_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, url, m.phone || null, m.checkout_id || null, m.flow || null, m.step || null, m.message_id || null);
+}
+
+function getRedirectMeta(id) {
+  return db.prepare('SELECT * FROM redirects WHERE id = ?').get(id);
 }
 
 function getRedirectUrl(id) {
@@ -398,9 +448,96 @@ function getRedirectUrl(id) {
 
 // ─── Redirect click tracking ────────────────────
 function trackRedirectClick(redirectId, ip, userAgent) {
+  // Pull phone/checkout_id/message_id from the parent redirect so each click
+  // row is self-sufficient for attribution (survives even if redirects row
+  // is later cleared).
+  const r = db.prepare('SELECT phone, checkout_id, message_id FROM redirects WHERE id = ?').get(redirectId) || {};
   db.prepare(`
-    INSERT INTO redirect_clicks (redirect_id, ip, user_agent) VALUES (?, ?, ?)
-  `).run(redirectId, ip || '', userAgent || '');
+    INSERT INTO redirect_clicks (redirect_id, ip, user_agent, phone, checkout_id, message_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(redirectId, ip || '', userAgent || '', r.phone || null, r.checkout_id || null, r.message_id || null);
+}
+
+// ─── WhatsApp attribution ────────────────────────
+// Returns the most recent click on a WhatsApp link by this phone within
+// attributionWindowMinutes. Used at order webhook time to decide whether
+// the new Shopify order is attributable to a WhatsApp campaign.
+function findRecentClickByPhone(phone, attributionWindowMinutes) {
+  if (!phone) return null;
+  const win = attributionWindowMinutes || 2880; // default 48h
+  return db.prepare(`
+    SELECT rc.*, r.url, r.flow, r.step
+    FROM redirect_clicks rc
+    LEFT JOIN redirects r ON rc.redirect_id = r.id
+    WHERE rc.phone = ?
+      AND rc.clicked_at >= datetime('now', '-' || ? || ' minutes')
+    ORDER BY rc.clicked_at DESC LIMIT 1
+  `).get(phone, win);
+}
+
+// Records an attributable order. Idempotent on order_id.
+function recordAttributedOrder(attribution) {
+  const existing = db.prepare('SELECT * FROM wa_attributed_orders WHERE order_id = ?').get(String(attribution.order_id));
+  if (existing) return existing;
+  db.prepare(`
+    INSERT INTO wa_attributed_orders
+      (order_id, shop, phone, email, checkout_id, redirect_id, message_id,
+       flow, template, order_total, currency, clicked_at, ordered_at, attribution_window_minutes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    String(attribution.order_id), attribution.shop, attribution.phone || null,
+    attribution.email || null, attribution.checkout_id || null,
+    attribution.redirect_id || null, attribution.message_id || null,
+    attribution.flow || null, attribution.template || null,
+    attribution.order_total || 0, attribution.currency || 'EUR',
+    attribution.clicked_at || null, attribution.ordered_at || null,
+    attribution.attribution_window_minutes || 2880
+  );
+  return db.prepare('SELECT * FROM wa_attributed_orders WHERE order_id = ?').get(String(attribution.order_id));
+}
+
+// Aggregated attribution stats over a time window.
+function getAttributionStats(from, to) {
+  const dfM = dateClause(from, to, 'm.created_at');
+  const dfClicks = dateClause(from, to, 'clicked_at');
+  const dfO = dateClause(from, to, 'ordered_at');
+
+  const sentRow = db.prepare(`
+    SELECT COUNT(*) as count FROM messages m
+    WHERE m.status = 'sent' AND m.flow = 'abandoned_cart' ${dfM.sql}
+  `).get(...dfM.params);
+
+  const clickRow = db.prepare(`
+    SELECT COUNT(DISTINCT redirect_id || '|' || COALESCE(phone,'')) as count
+    FROM redirect_clicks WHERE phone IS NOT NULL ${dfClicks.sql}
+  `).get(...dfClicks.params);
+
+  const attrRow = db.prepare(`
+    SELECT COUNT(*) as count, COALESCE(SUM(order_total), 0) as revenue
+    FROM wa_attributed_orders WHERE 1=1 ${dfO.sql}
+  `).get(...dfO.params);
+
+  const sent = sentRow.count;
+  const clicks = clickRow.count;
+  const orders = attrRow.count;
+  const revenue = attrRow.revenue;
+
+  return {
+    messages_sent: sent,
+    clicks,
+    attributed_orders: orders,
+    attributed_revenue: revenue,
+    ctr_pct: sent > 0 ? Math.round((clicks / sent) * 1000) / 10 : 0,
+    cr_from_click_pct: clicks > 0 ? Math.round((orders / clicks) * 1000) / 10 : 0,
+    cr_overall_pct: sent > 0 ? Math.round((orders / sent) * 1000) / 10 : 0,
+    revenue_per_message: sent > 0 ? Math.round((revenue / sent) * 100) / 100 : 0,
+  };
+}
+
+function getRecentAttributedOrders(limit) {
+  return db.prepare(`
+    SELECT * FROM wa_attributed_orders ORDER BY attributed_at DESC LIMIT ?
+  `).all(limit || 50);
 }
 
 function getRedirectClicks(redirectId) {
@@ -833,7 +970,8 @@ module.exports = {
   suppressPhone, isSuppressed, unsuppressPhone, getSuppressedPhones,
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
-  saveRedirect, getRedirectUrl, trackRedirectClick, getRedirectClicks, getTotalClicks, clearAll,
+  saveRedirect, getRedirectMeta, getRedirectUrl, trackRedirectClick, getRedirectClicks, getTotalClicks, clearAll,
+  findRecentClickByPhone, recordAttributedOrder, getAttributionStats, getRecentAttributedOrders,
   getSqliteNow, getStats,
   getMessagesByFlow, getMessagesByDay, getCheckoutsDetailed, getMessagesByTemplate, getTemplateStats, getFlowConversionStats, getDeliveryStats, getDailyRevenue, getHourlyDistribution,
   createCampaign, getCampaigns, getCampaignById, updateCampaignStatus,

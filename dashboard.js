@@ -326,6 +326,28 @@ tr:hover td { background: #f8fafb; }
 
   <div class="kpi-grid" id="kpiGrid"></div>
 
+  <!-- Attribution WhatsApp (CTR / CR / Revenue attribué) -->
+  <div class="card">
+    <div class="card-header">
+      <h2>&#127919; Attribution WhatsApp</h2>
+      <span style="font-size:11px;color:var(--text-secondary)">Conversions tracées via clic sur le lien WhatsApp (fenêtre 48h)</span>
+    </div>
+    <div class="card-body" id="attributionCard">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
+    </div>
+  </div>
+
+  <!-- Commandes attribuées détaillées -->
+  <div class="card">
+    <div class="card-header">
+      <h2>&#128722; Commandes attribuées au WhatsApp</h2>
+      <span style="font-size:11px;color:var(--text-secondary)">Détail des orders convertis via clic WhatsApp</span>
+    </div>
+    <div class="card-body" id="attributedOrdersTable">
+      <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
+    </div>
+  </div>
+
   <!-- Couts & ROI -->
   <div class="card">
     <div class="card-header">
@@ -622,6 +644,9 @@ async function loadAll(){
     try{campaigns=await api('/api/campaigns');renderCampaigns(campaigns);}catch(e){}
     try{const ab=await api('/api/ab-results');renderABTest(ab);}catch(e){}
     try{const ts=await api('/api/template-stats?_=1'+dp);const fc=await api('/api/flow-conversion-stats?_=1'+dp);renderTemplateStats(ts,fc);}catch(e){}
+    // Attribution WhatsApp
+    try{const att=await api('/api/attribution?_=1'+dp);renderAttribution(att);}catch(e){console.error('attribution',e);}
+    try{const ao=await api('/api/attribution/orders?limit=50');renderAttributedOrders(ao);}catch(e){console.error('attributed orders',e);}
     // Render cost card with all data
     renderCostCard(s, bf, campaigns);
   }catch(err){
@@ -632,6 +657,48 @@ async function loadAll(){
 }
 
 function kpi(l,v,sub,c){return '<div class="kpi '+c+'"><div class="label">'+l+'</div><div class="value">'+v+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'}
+
+// ─── Attribution WhatsApp ──────────────────────
+function renderAttribution(a){
+  const el=document.getElementById('attributionCard');
+  if(!el)return;
+  if(!a){el.innerHTML='<div style="color:var(--text-secondary)">Aucune donnée</div>';return;}
+  const fmt=(n)=>typeof n==='number'?n.toLocaleString('fr-FR'):n;
+  const rev=(a.attributed_revenue||0).toFixed(2);
+  const blocks=[
+    ['Messages envoyés',fmt(a.messages_sent),'flux abandoned_cart','teal'],
+    ['Clics sur lien WA',fmt(a.clicks),'CTR : '+a.ctr_pct+'%','orange'],
+    ['Commandes attribuées',fmt(a.attributed_orders),'CR depuis clic : '+a.cr_from_click_pct+'%','green'],
+    ['CA attribué WhatsApp',rev+' EUR','Soit '+a.revenue_per_message.toFixed(2)+' EUR / msg envoyé','green'],
+  ];
+  el.innerHTML='<div class="kpi-grid">'+blocks.map(b=>kpi(b[0],b[1],b[2],b[3])).join('')+'</div>'+
+    '<div style="font-size:11px;color:var(--text-secondary);margin-top:10px">Méthode : on attribue une commande au WhatsApp si le téléphone du client a cliqué sur le lien WhatsApp dans les <strong>48 h</strong> précédant la commande. Bouton "STOP" + opt-out RGPD pris en compte.</div>';
+}
+
+function renderAttributedOrders(orders){
+  const el=document.getElementById('attributedOrdersTable');
+  if(!el)return;
+  if(!Array.isArray(orders)||orders.length===0){
+    el.innerHTML='<div style="color:var(--text-secondary);font-size:13px">Aucune commande attribuée pour le moment. Dès qu\\'un client clique sur le lien WhatsApp et passe commande dans les 48h suivantes, sa commande apparaîtra ici.</div>';
+    return;
+  }
+  const rows=orders.map(o=>{
+    const d=new Date(o.ordered_at||o.attributed_at);
+    const dStr=d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const total=parseFloat(o.order_total||0).toFixed(2);
+    return '<tr>'+
+      '<td>'+dStr+'</td>'+
+      '<td>'+(o.phone||'-')+'</td>'+
+      '<td>'+(o.email||'-')+'</td>'+
+      '<td>'+(o.template||o.flow||'-')+'</td>'+
+      '<td style="text-align:right;font-weight:600">'+total+' '+(o.currency||'EUR')+'</td>'+
+      '<td>'+(o.order_id||'-')+'</td>'+
+    '</tr>';
+  }).join('');
+  el.innerHTML='<div style="overflow-x:auto"><table class="data-table" style="width:100%;font-size:12px">'+
+    '<thead><tr><th>Commande</th><th>Téléphone</th><th>Email</th><th>Template déclencheur</th><th style="text-align:right">Montant</th><th>Order ID</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>';
+}
 
 // ─── Couts & ROI card ───────────────────────────
 function renderCostCard(stats, flowData, campaigns){

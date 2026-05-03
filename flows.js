@@ -148,6 +148,47 @@ const abandonedCart = {
     // Mark checkout as converted (by email)
     if (email) db.markCheckoutConverted(shop, email);
 
+    // ─── WhatsApp attribution: did this order come from a WhatsApp click? ───
+    // For each phone variant on the order, look for a click on a /r/:shortId
+    // by that phone within the last 48h. If found, record the attribution.
+    const ATTRIBUTION_WINDOW_MIN = 48 * 60;
+    let attributed = false;
+    for (const p of new Set(altPhones)) {
+      const cleaned = p.replace(/[^0-9]/g, '');
+      const variants = new Set([p, cleaned, cleaned.startsWith('0') ? '33' + cleaned.slice(1) : cleaned]);
+      for (const v of variants) {
+        const click = db.findRecentClickByPhone(v, ATTRIBUTION_WINDOW_MIN);
+        if (click) {
+          // Find the message that triggered this click, for template attribution
+          let template = null;
+          if (click.message_id) {
+            const m = db.getRecentMessages(1000).find(x => x.id === click.message_id);
+            if (m) template = m.template;
+          }
+          db.recordAttributedOrder({
+            order_id: order.id,
+            shop,
+            phone: v,
+            email,
+            checkout_id: click.checkout_id,
+            redirect_id: click.redirect_id,
+            message_id: click.message_id,
+            flow: click.flow,
+            template,
+            order_total: parseFloat(order.total_price || 0),
+            currency: order.currency || 'EUR',
+            clicked_at: click.clicked_at,
+            ordered_at: order.created_at,
+            attribution_window_minutes: ATTRIBUTION_WINDOW_MIN,
+          });
+          console.log(`[ATTRIBUTION] Order ${order.id} (${order.total_price}${order.currency || ''}) attributed to WhatsApp click on ${click.clicked_at} by ${v}`);
+          attributed = true;
+          break;
+        }
+      }
+      if (attributed) break;
+    }
+
     // Cancel pending messages for ALL phone numbers associated with this order
     const cancelledPhones = new Set();
     for (const p of altPhones) {
@@ -576,11 +617,19 @@ async function processQueue() {
         db.setMessageVariant(msg.id, variant);
         console.log(`[A/B] ${msg.phone} → variant ${variant} (step ${msg.step})`);
 
-        // Generate short URL for checkout
+        // Generate short URL for checkout — enriched with attribution metadata
+        // so a click on /r/:shortId can later be tied back to this exact
+        // recipient + message + checkout (used for WhatsApp ROI tracking).
         let shortId = 'shop';
         if (metadata.cart_url) {
           shortId = Math.random().toString(36).slice(2, 8);
-          db.saveRedirect(shortId, metadata.cart_url);
+          db.saveRedirect(shortId, metadata.cart_url, {
+            phone: msg.phone,
+            checkout_id: metadata.checkout_id,
+            flow: msg.flow,
+            step: msg.step,
+            message_id: msg.id,
+          });
         }
 
         // Send Meta template with button

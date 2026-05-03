@@ -470,6 +470,19 @@ app.get('/api/suppressed', requireAuth, (req, res) => {
   res.json(db.getSuppressedPhones(limit));
 });
 
+// ─── WhatsApp attribution stats ─────────────────
+// GET /api/attribution?from=&to= — KPIs: messages, clicks, attributed orders, revenue, CTR, CR
+app.get('/api/attribution', requireAuth, (req, res) => {
+  const { from, to } = req.query;
+  res.json(db.getAttributionStats(from, to));
+});
+
+// GET /api/attribution/orders?limit=50 — recent attributed orders detail
+app.get('/api/attribution/orders', requireAuth, (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json(db.getRecentAttributedOrders(limit));
+});
+
 // ─── Export CSV ────────────────────────────────
 app.get('/api/export/contacts', requireAuth, (req, res) => {
   const contacts = db.getContacts('all');
