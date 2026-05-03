@@ -208,15 +208,21 @@ app.post('/webhooks/whatsapp', (req, res) => {
 
           const textLower = text.toLowerCase();
 
-          // Check for opt-out keywords
+          // Check for opt-out keywords → GLOBAL suppression (RGPD)
+          // Cancels every queued message for this phone, revokes optins on all shops,
+          // flags contacts opted_out, and inserts into suppressed_phones so future
+          // enrolment attempts are blocked at isOptedIn() check.
           if (OPT_OUT_KEYWORDS.includes(textLower)) {
-            db.optOut(phone, defaultShop);
-            console.log(`[WA-WEBHOOK] Opt-out: ${phone}`);
+            const result = db.suppressPhone(phone, `wa_stop_keyword:${textLower}`, 'whatsapp_webhook');
+            console.log(`[WA-WEBHOOK] SUPPRESSED: ${phone} — cancelled ${result.cancelled_messages} queued msgs, revoked ${result.optins_revoked} optins`);
+            // Confirmation reply (best-effort, ignore failures since the user just opted out)
+            whatsapp.sendText(phone, "Vous avez été désinscrit. Vous ne recevrez plus aucun message de notre part.").catch(() => {});
           }
-          // Check for opt-in keywords
+          // Check for opt-in keywords → unsuppress + save optin
           else if (OPT_IN_KEYWORDS.includes(textLower)) {
+            db.unsuppressPhone(phone);
             db.saveOptin(phone, defaultShop, 'whatsapp_reply');
-            console.log(`[WA-WEBHOOK] Opt-in: ${phone}`);
+            console.log(`[WA-WEBHOOK] Opt-in (unsuppressed): ${phone}`);
           }
         }
       }
@@ -433,6 +439,35 @@ app.get('/api/incoming-messages', requireAuth, (req, res) => {
 app.get('/api/alerts', requireAuth, (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   res.json(db.getAlerts(limit));
+});
+
+// ─── Suppression list (RGPD) ───────────────────
+// POST /api/suppress  body { phone, reason? }
+// Manually add a phone to the global suppression list. Cancels queued
+// messages, revokes opt-ins, flags contacts. Use for RGPD erasure requests.
+app.post('/api/suppress', requireAuth, (req, res) => {
+  const { phone, reason } = req.body || {};
+  if (!phone) return res.status(400).json({ error: 'phone required' });
+  try {
+    const result = db.suppressPhone(phone, reason || 'manual_admin', 'admin_api');
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/unsuppress body { phone }
+// Remove a phone from the suppression list (e.g. erroneous suppression).
+app.post('/api/unsuppress', requireAuth, (req, res) => {
+  const { phone } = req.body || {};
+  if (!phone) return res.status(400).json({ error: 'phone required' });
+  res.json({ ok: true, ...db.unsuppressPhone(phone) });
+});
+
+// GET /api/suppressed?limit=100 — list suppressed phones
+app.get('/api/suppressed', requireAuth, (req, res) => {
+  const limit = parseInt(req.query.limit) || 100;
+  res.json(db.getSuppressedPhones(limit));
 });
 
 // ─── Export CSV ────────────────────────────────

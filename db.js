@@ -136,6 +136,16 @@ function init() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- Global suppression list (RGPD): once a phone is here, no message is EVER
+    -- sent to it again, across all shops and all flows. Inserted on STOP reply
+    -- or via admin endpoint. Cannot be re-enrolled automatically by any flow.
+    CREATE TABLE IF NOT EXISTS suppressed_phones (
+      phone TEXT PRIMARY KEY,
+      reason TEXT NOT NULL,
+      source TEXT,
+      suppressed_at TEXT DEFAULT (datetime('now'))
+    );
+
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('abandoned_cart', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('upsell', 1);
     INSERT OR IGNORE INTO flow_settings (flow_name, enabled) VALUES ('winback', 1);
@@ -260,6 +270,8 @@ function getRecentMessages(limit, from, to) {
 
 // ─── Opt-ins ─────────────────────────────────────
 function isOptedIn(phone, shop) {
+  // Global kill-switch: a suppressed phone is opted-out everywhere, no exceptions
+  if (isSuppressed(phone)) return false;
   const row = db.prepare('SELECT opted_in FROM optins WHERE phone = ? AND shop = ?').get(phone, shop);
   // If no record, default to opted in for now (will enforce strict opt-in later)
   return row ? row.opted_in === 1 : true;
@@ -274,6 +286,67 @@ function saveOptin(phone, shop, source, ip, consentText) {
 
 function optOut(phone, shop) {
   db.prepare('UPDATE optins SET opted_in = 0 WHERE phone = ? AND shop = ?').run(phone, shop);
+}
+
+// ─── Global Suppression (RGPD STOP) ──────────────
+// Suppresses a phone number globally and irreversibly until manually removed.
+// - Cancels every queued message for this phone (all shops, all flows)
+// - Marks all opt-ins as opted_out
+// - Flags all matching contacts as opted_out
+// - Inserts into the global suppression list so future enrolment attempts
+//   are blocked at isOptedIn() check (which all flows already use)
+// Returns counts so callers can log/expose what happened.
+function suppressPhone(phone, reason, source) {
+  if (!phone) throw new Error('phone required');
+  const r = String(reason || 'unspecified');
+  const s = String(source || 'system');
+
+  const cancelled = db.prepare(`
+    UPDATE messages SET status = 'cancelled', error = 'suppressed: ' || ?
+    WHERE phone = ? AND status = 'queued'
+  `).run(r, phone).changes;
+
+  const optinsRevoked = db.prepare(`
+    UPDATE optins SET opted_in = 0 WHERE phone = ?
+  `).run(phone).changes;
+
+  const contactsFlagged = db.prepare(`
+    UPDATE contacts SET opted_out = 1, updated_at = datetime('now') WHERE phone = ?
+  `).run(phone).changes;
+
+  db.prepare(`
+    INSERT OR REPLACE INTO suppressed_phones (phone, reason, source)
+    VALUES (?, ?, ?)
+  `).run(phone, r, s);
+
+  db.prepare(`
+    INSERT INTO alerts (type, message)
+    VALUES ('suppression', ?)
+  `).run(`Phone ${phone} suppressed (reason: ${r}, source: ${s}). Cancelled ${cancelled} queued msgs, revoked ${optinsRevoked} optins, flagged ${contactsFlagged} contacts.`);
+
+  return { phone, reason: r, source: s, cancelled_messages: cancelled, optins_revoked: optinsRevoked, contacts_flagged: contactsFlagged };
+}
+
+function isSuppressed(phone) {
+  if (!phone) return false;
+  const row = db.prepare('SELECT 1 FROM suppressed_phones WHERE phone = ?').get(phone);
+  return !!row;
+}
+
+function unsuppressPhone(phone) {
+  const removed = db.prepare('DELETE FROM suppressed_phones WHERE phone = ?').run(phone).changes;
+  if (removed > 0) {
+    db.prepare(`INSERT INTO alerts (type, message) VALUES ('suppression', ?)`)
+      .run(`Phone ${phone} REMOVED from suppression list (manual admin action).`);
+  }
+  return { phone, removed: removed > 0 };
+}
+
+function getSuppressedPhones(limit) {
+  return db.prepare(`
+    SELECT phone, reason, source, suppressed_at FROM suppressed_phones
+    ORDER BY suppressed_at DESC LIMIT ?
+  `).all(limit || 100);
 }
 
 // ─── Flow Settings ───────────────────────────────
@@ -755,6 +828,7 @@ module.exports = {
   saveCheckout, getCheckoutById, getCheckoutsByEmail, markCheckoutConverted, getUnconvertedCheckout,
   queueMessage, getPendingMessages, updateMessageStatus, updateMessageDeliveryStatus, cancelMessages, hasActiveFlow, getRecentMessages,
   isOptedIn, saveOptin, optOut,
+  suppressPhone, isSuppressed, unsuppressPhone, getSuppressedPhones,
   getFlowSettings, isFlowEnabled, setFlowEnabled,
   saveCustomer, getInactiveCustomers, updateWinbackStage,
   saveRedirect, getRedirectUrl, trackRedirectClick, getRedirectClicks, getTotalClicks, clearAll,

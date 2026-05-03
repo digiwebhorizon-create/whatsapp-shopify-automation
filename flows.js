@@ -530,6 +530,14 @@ async function processQueue() {
     try {
       const metadata = JSON.parse(msg.metadata || '{}');
 
+      // RGPD safety net: a message could have been queued seconds before the
+      // recipient sent STOP. Last-chance check before hitting Meta API.
+      if (db.isSuppressed(msg.phone)) {
+        db.updateMessageStatus(msg.id, 'cancelled', null, 'phone_suppressed');
+        console.log(`[QUEUE] Skipped ${msg.template} for ${msg.phone} — phone is suppressed`);
+        continue;
+      }
+
       // Safety check: skip if checkout was converted since queueing
       if (msg.flow === 'abandoned_cart' && metadata.checkout_id) {
         const checkout = db.getCheckoutById(metadata.checkout_id);
