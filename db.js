@@ -488,12 +488,14 @@ function getTemplateStats(from, to) {
   });
 
   // Add conversion data per template (for abandoned_cart: check if the checkout linked to the message converted)
+  // Note: checkout_id is stored inside the metadata JSON column, not as a real column.
+  // Using json_extract to read it cleanly.
   const dfm = dateClause(from, to, 'm.created_at');
   const convRows = db.prepare(`
     SELECT m.template, COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted,
       COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
     FROM messages m
-    LEFT JOIN checkouts c ON m.checkout_id = c.id
+    LEFT JOIN checkouts c ON c.id = json_extract(m.metadata, '$.checkout_id')
     WHERE m.flow = 'abandoned_cart' ${dfm.sql}
     GROUP BY m.template
   `).all(...dfm.params);
