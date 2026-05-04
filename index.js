@@ -425,7 +425,8 @@ app.get('/api/revenue-chart', requireAuth, (req, res) => {
 
 // ─── A/B Test Results ───────────────────────────
 app.get('/api/ab-results', requireAuth, (req, res) => {
-  res.json(db.getABTestResults());
+  const { from, to } = req.query;
+  res.json(db.getABTestResults(from, to));
 });
 
 // ─── Incoming Messages API ─────────────────────

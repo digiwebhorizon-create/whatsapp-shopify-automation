@@ -642,7 +642,7 @@ async function loadAll(){
     try{const t=await api('/api/templates');if(Array.isArray(t))allTemplates=t;}catch(e){}
     let campaigns=[];
     try{campaigns=await api('/api/campaigns');renderCampaigns(campaigns);}catch(e){}
-    try{const ab=await api('/api/ab-results');renderABTest(ab);}catch(e){}
+    try{const ab=await api('/api/ab-results?_=1'+dp);renderABTest(ab);}catch(e){}
     try{const ts=await api('/api/template-stats?_=1'+dp);const fc=await api('/api/flow-conversion-stats?_=1'+dp);renderTemplateStats(ts,fc);}catch(e){}
     // Attribution WhatsApp
     try{const att=await api('/api/attribution?_=1'+dp);renderAttribution(att);}catch(e){console.error('attribution',e);}
@@ -1070,9 +1070,10 @@ function renderABTest(data){
   let h='<div style="background:#f8fafb;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px">';
   h+='<div><span style="color:var(--text-secondary)">Clics WhatsApp :</span> <strong>'+attr.total_wa_clicks+'</strong></div>';
   h+='<div><span style="color:var(--text-secondary)">Taux de clic :</span> <strong>'+attr.click_rate+'%</strong></div>';
-  h+='<div><span style="color:var(--text-secondary)">Conversions totales :</span> <strong style="color:var(--success)">'+attr.total_converted+'</strong></div>';
-  h+='<div><span style="color:var(--text-secondary)">Revenu total :</span> <strong style="color:var(--success)">'+attr.total_revenue.toFixed(0)+' EUR</strong></div>';
+  h+='<div><span style="color:var(--text-secondary)">Cmds attribuées au clic WA :</span> <strong style="color:var(--success)">'+attr.total_converted+'</strong></div>';
+  h+='<div><span style="color:var(--text-secondary)">CA attribué WhatsApp :</span> <strong style="color:var(--success)">'+attr.total_revenue.toFixed(0)+' EUR</strong></div>';
   h+='</div>';
+  h+='<div style="font-size:11px;color:var(--text-secondary);margin-bottom:14px">Méthode commune au tableau "Attribution WhatsApp" : un clic sur le lien du message + une commande sur le même téléphone dans les 48h. Tous les chiffres sont sur la fenêtre de date sélectionnée.</div>';
 
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
 

@@ -903,15 +903,16 @@ function setMessageVariant(id, variant) {
   db.prepare('UPDATE messages SET metadata = ? WHERE id = ?').run(JSON.stringify(meta), id);
 }
 
-function getABTestResults() {
-  // Get step 1 abandoned cart messages that were sent, with their checkout conversion status
+function getABTestResults(from, to) {
+  // Step 1 abandoned cart messages that were SENT in the window, with conversion of their checkout
+  const dfm = dateClause(from, to, 'm.created_at');
   const messages = db.prepare(`
     SELECT m.id, m.phone, m.metadata, m.status,
            c.converted, c.total_price
     FROM messages m
     LEFT JOIN checkouts c ON json_extract(m.metadata, '$.checkout_id') = c.id
-    WHERE m.flow = 'abandoned_cart' AND m.step = 1 AND m.status = 'sent'
-  `).all();
+    WHERE m.flow = 'abandoned_cart' AND m.step = 1 AND m.status = 'sent' ${dfm.sql}
+  `).all(...dfm.params);
 
   const results = {
     with_images: { sent: 0, converted: 0, clicked: 0, revenue: 0 },
@@ -929,28 +930,40 @@ function getABTestResults() {
     }
   });
 
-  // Count clicks per variant (check redirect_clicks for messages with short URLs)
-  // We track all redirect clicks globally — clicks mean WhatsApp-attributed traffic
-  const totalClicks = db.prepare('SELECT COUNT(*) as c FROM redirect_clicks').get().c;
-
-  // Add conversion rates and click rate
   for (const v of Object.values(results)) {
     v.conversion_rate = v.sent > 0 ? Math.round(v.converted / v.sent * 100) : 0;
   }
 
-  // Global attribution stats
-  const totalSent = db.prepare("SELECT COUNT(*) as c FROM messages WHERE flow = 'abandoned_cart' AND status = 'sent'").get().c;
-  const totalConverted = db.prepare("SELECT COUNT(*) as c FROM checkouts WHERE converted = 1").get().c;
-  const totalRevenue = db.prepare("SELECT COALESCE(SUM(CAST(total_price AS REAL)), 0) as t FROM checkouts WHERE converted = 1").get().t;
+  // Attribution scoped to the same window — only clicks on links sent during
+  // this window, only orders attributable to those clicks. This keeps the
+  // numbers consistent with the top KPIs and the per-template table.
+  const dfClick = dateClause(from, to, 'clicked_at');
+  const clicksRow = db.prepare(`
+    SELECT COUNT(DISTINCT redirect_id || '|' || COALESCE(phone,'')) as c
+    FROM redirect_clicks
+    WHERE phone IS NOT NULL ${dfClick.sql}
+  `).get(...dfClick.params);
+
+  const dfOrder = dateClause(from, to, 'ordered_at');
+  const attrRow = db.prepare(`
+    SELECT COUNT(*) as count, COALESCE(SUM(order_total), 0) as revenue
+    FROM wa_attributed_orders WHERE 1=1 ${dfOrder.sql}
+  `).get(...dfOrder.params);
+
+  // total_sent: all sent abandoned_cart messages in the window (all steps)
+  const sentRow = db.prepare(`
+    SELECT COUNT(*) as c FROM messages m
+    WHERE m.flow = 'abandoned_cart' AND m.status = 'sent' ${dfm.sql}
+  `).get(...dfm.params);
 
   return {
     ...results,
     attribution: {
-      total_wa_clicks: totalClicks,
-      total_sent: totalSent,
-      total_converted: totalConverted,
-      total_revenue: totalRevenue,
-      click_rate: totalSent > 0 ? Math.round(totalClicks / totalSent * 100) : 0
+      total_wa_clicks: clicksRow.c,
+      total_sent: sentRow.c,
+      total_converted: attrRow.count,           // CLICK-attributed only — same as /api/attribution
+      total_revenue: attrRow.revenue,           // CLICK-attributed only
+      click_rate: sentRow.c > 0 ? Math.round(clicksRow.c / sentRow.c * 100) : 0
     }
   };
 }
