@@ -625,12 +625,18 @@ async function loadAll(){
     const delivRate=delStats.sent>0?Math.round(delStats.delivered/delStats.sent*100):0;
     const readRate=delStats.sent>0?Math.round(delStats.read_count/delStats.sent*100):0;
 
+    // Strict WhatsApp-attributed revenue (click + order within 48h)
+    const waRev=(s.wa_attributed_revenue||0);
+    const waOrders=(s.wa_attributed_orders||0);
+    const waRoi=totalCost>0?((waRev/totalCost)).toFixed(1):'--';
+
     document.getElementById('kpiGrid').innerHTML=[
       kpi('Messages envoyés',s.messages_sent||0,'Livrés : '+delivRate+'% — Lus : '+readRate+'%','teal'),
       kpi('En attente / Échoués',(s.messages_queued||0)+' / '+(s.messages_failed||0),'','orange'),
-      kpi('Paniers récupérés',s.recovered_checkouts||0,(s.recovery_rate||0)+'% sur '+(s.total_checkouts||0)+' détectés','green'),
-      kpi('CA récupéré',rev.toFixed(0)+' EUR','ROI: x'+roi,'green'),
+      kpi('Cmds attribuées WA',waOrders,'clic + achat dans 48h','green'),
+      kpi('CA WhatsApp',waRev.toFixed(0)+' EUR','ROI: x'+waRoi+' — récupéré grâce au clic WA','green'),
       kpi('Coût WhatsApp',totalCost.toFixed(2)+' EUR',(waCost*100).toFixed(1)+' cts/msg — '+(s.messages_sent||0)+' envois','red'),
+      kpi('CA total récupéré',rev.toFixed(0)+' EUR',(s.recovered_checkouts||0)+' paniers reconvertis (toutes causes)','teal'),
     ].join('');
     const bf=await api('/api/messages-by-flow?_=1'+dp);renderFlowChart(bf);
     const hr=await api('/api/hourly-distribution?_=1'+dp);renderHourly(hr);
@@ -992,9 +998,9 @@ function renderTemplateStats(tplStats, flowConv){
     h+='<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--teal);margin-bottom:10px">&#128722; Panier abandonné — Funnel de conversion</div>';
     h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">';
     h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Détectés</div><div style="font-size:22px;font-weight:700;color:var(--teal)">'+ac.total_checkouts+'</div></div>';
-    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Convertis</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.converted_checkouts+'</div></div>';
-    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Taux conversion</div><div style="font-size:22px;font-weight:700;color:'+(ac.conversion_rate>5?'var(--success)':'var(--warning)')+'">'+ac.conversion_rate+'%</div></div>';
-    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA récupéré</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+ac.revenue.toFixed(0)+' EUR</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Cmds via WA</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+(ac.wa_attributed_orders||0)+'</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">Taux récup. WA</div><div style="font-size:22px;font-weight:700;color:'+(ac.conversion_rate>5?'var(--success)':'var(--warning)')+'">'+ac.conversion_rate+'%</div></div>';
+    h+='<div style="background:#f8fafb;border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;font-weight:600">CA WhatsApp</div><div style="font-size:22px;font-weight:700;color:var(--success)">'+(ac.wa_attributed_revenue||0).toFixed(0)+' EUR</div></div>';
     h+='</div>';
 
     // Steps funnel
@@ -1003,11 +1009,17 @@ function renderTemplateStats(tplStats, flowConv){
       ac.steps.forEach(st=>{
         const sName=(stepNames.abandoned_cart||{})[st.step]||'Step '+st.step;
         const cancelPct=st.sent>0?Math.round(st.cancelled/(st.sent+st.cancelled)*100):0;
+        const waOrders=st.wa_orders||0;
+        const waRev=st.wa_revenue||0;
         h+='<div style="flex:1;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">';
         h+='<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">'+sName+'</div>';
         h+='<div style="font-size:18px;font-weight:700;color:var(--teal)">'+st.sent+'</div>';
         h+='<div style="font-size:10px;color:var(--text-secondary)">envoyés</div>';
-        if(st.cancelled>0) h+='<div style="font-size:10px;color:var(--success);margin-top:2px">'+st.cancelled+' annulés ('+cancelPct+'% convertis avant)</div>';
+        h+='<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px">';
+        h+='<div style="color:var(--success);font-weight:700">'+waOrders+' cmds via WA</div>';
+        h+='<div style="color:var(--success)">'+waRev.toFixed(0)+' EUR récupérés</div>';
+        h+='</div>';
+        if(st.cancelled>0) h+='<div style="font-size:10px;color:var(--text-secondary);margin-top:4px">'+st.cancelled+' annulés (auto-recovery)</div>';
         h+='</div>';
       });
       h+='</div>';

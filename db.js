@@ -581,6 +581,14 @@ function getStats(from, to) {
 
   const revenue = db.prepare(`SELECT COALESCE(SUM(CAST(total_price AS REAL)), 0) as total FROM checkouts WHERE converted = 1 ${dcf.sql}`).get(...dcf.params);
 
+  // Strict WhatsApp attribution: orders where the customer clicked the WA link
+  // and ordered within 48h on the same phone. Same source as /api/attribution.
+  const dfo = dateClause(from, to, 'ordered_at');
+  const waAttr = db.prepare(`
+    SELECT COUNT(*) as count, COALESCE(SUM(order_total), 0) as revenue
+    FROM wa_attributed_orders WHERE 1=1 ${dfo.sql}
+  `).get(...dfo.params);
+
   return {
     messages_sent: sent.count,
     messages_queued: queued.count,
@@ -590,7 +598,9 @@ function getStats(from, to) {
     recovered_checkouts: recovered.count,
     total_checkouts: totalCheckouts.count,
     recovery_rate: totalCheckouts.count > 0 ? Math.round(recovered.count / totalCheckouts.count * 100) : 0,
-    revenue_recovered: revenue.total,
+    revenue_recovered: revenue.total,           // descriptive: any reason
+    wa_attributed_orders: waAttr.count,         // strict: clicked WA + ordered in 48h
+    wa_attributed_revenue: waAttr.revenue,      // strict revenue
     total_customers: totalCustomers.count,
     total_optins: totalOptins.count
   };
@@ -624,32 +634,20 @@ function getTemplateStats(from, to) {
     templates[key].total += r.count;
   });
 
-  // Add conversion data per template — LAST-TOUCH attribution.
-  // For each converted checkout, only the most recently SENT template before
-  // the conversion gets credit. This guarantees that the sum of revenues
-  // across templates equals the total recovered revenue (no double counting).
-  // A template never sent (status != 'sent') gets no credit, by design.
-  const dfm = dateClause(from, to, 'm.created_at');
+  // Add conversion data per template — STRICT CLICK ATTRIBUTION.
+  // Only counts orders where the customer actually clicked the WhatsApp link
+  // and ordered within 48h on the same phone. Uses wa_attributed_orders,
+  // same source as /api/attribution and the A/B Test card. Gives a single,
+  // consistent definition of "recovered by WhatsApp" everywhere.
+  const dfo = dateClause(from, to, 'ordered_at');
   const convRows = db.prepare(`
-    WITH last_sent AS (
-      SELECT
-        json_extract(m.metadata, '$.checkout_id') as cid,
-        m.template,
-        ROW_NUMBER() OVER (
-          PARTITION BY json_extract(m.metadata, '$.checkout_id')
-          ORDER BY datetime(m.sent_at) DESC
-        ) as rn
-      FROM messages m
-      WHERE m.flow = 'abandoned_cart' AND m.status = 'sent' ${dfm.sql}
-    )
-    SELECT u.template,
-      COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted,
-      COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
-    FROM last_sent u
-    LEFT JOIN checkouts c ON c.id = u.cid
-    WHERE u.rn = 1
-    GROUP BY u.template
-  `).all(...dfm.params);
+    SELECT template,
+      COUNT(*) as converted,
+      COALESCE(SUM(order_total), 0) as revenue
+    FROM wa_attributed_orders
+    WHERE template IS NOT NULL ${dfo.sql}
+    GROUP BY template
+  `).all(...dfo.params);
 
   convRows.forEach(r => {
     if (templates[r.template]) {
@@ -663,17 +661,25 @@ function getTemplateStats(from, to) {
 
 function getFlowConversionStats(from, to) {
   const df = dateClause(from, to);
-  // For abandoned_cart: how many checkouts converted after receiving messages
+
+  // Funnel descriptive: detected vs converted, all causes (auto-recovery + WA)
   const cartStats = db.prepare(`
     SELECT
       COUNT(DISTINCT c.id) as total_checkouts,
-      COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted_checkouts,
-      COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
+      COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted_checkouts
     FROM checkouts c
     WHERE 1=1 ${df.sql}
   `).get(...df.params);
 
-  // Messages per step for abandoned_cart
+  // STRICT WhatsApp attribution: only orders that came from a WA click + 48h
+  const dfo = dateClause(from, to, 'ordered_at');
+  const cartWaAttr = db.prepare(`
+    SELECT COUNT(*) as wa_attributed_orders, COALESCE(SUM(order_total), 0) as wa_attributed_revenue
+    FROM wa_attributed_orders WHERE flow = 'abandoned_cart' ${dfo.sql}
+  `).get(...dfo.params);
+
+  // Per-step funnel: sent / cancelled + WA-attributed orders & revenue per step.
+  // The wa subquery groups by template to map back to step.
   const cartSteps = db.prepare(`
     SELECT step,
       COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
@@ -683,10 +689,37 @@ function getFlowConversionStats(from, to) {
     GROUP BY step ORDER BY step
   `).all(...df.params);
 
+  const cartStepsWa = db.prepare(`
+    SELECT template,
+      COUNT(*) as wa_orders,
+      COALESCE(SUM(order_total), 0) as wa_revenue
+    FROM wa_attributed_orders
+    WHERE flow = 'abandoned_cart' AND template IS NOT NULL ${dfo.sql}
+    GROUP BY template
+  `).all(...dfo.params);
+
+  // Map template → step
+  const tmplToStep = { panier_rappel_1: 1, panier_rappel_2: 2, panier_rappel_promo: 3 };
+  const stepWa = {};
+  for (const r of cartStepsWa) {
+    const s = tmplToStep[r.template];
+    if (s) stepWa[s] = { wa_orders: r.wa_orders, wa_revenue: r.wa_revenue };
+  }
+  for (const st of cartSteps) {
+    st.wa_orders = stepWa[st.step]?.wa_orders || 0;
+    st.wa_revenue = stepWa[st.step]?.wa_revenue || 0;
+  }
+
   return {
     abandoned_cart: {
-      ...cartStats,
-      conversion_rate: cartStats.total_checkouts > 0 ? Math.round(cartStats.converted_checkouts / cartStats.total_checkouts * 100) : 0,
+      total_checkouts: cartStats.total_checkouts,
+      converted_checkouts: cartStats.converted_checkouts,
+      // 'revenue' field kept for backward compat but now maps to WA-attributed only
+      revenue: cartWaAttr.wa_attributed_revenue,
+      wa_attributed_orders: cartWaAttr.wa_attributed_orders,
+      wa_attributed_revenue: cartWaAttr.wa_attributed_revenue,
+      // 'conversion_rate' is now the WA-attribution rate (orders attributed to WA / detected)
+      conversion_rate: cartStats.total_checkouts > 0 ? Math.round(cartWaAttr.wa_attributed_orders / cartStats.total_checkouts * 100) : 0,
       steps: cartSteps
     }
   };
