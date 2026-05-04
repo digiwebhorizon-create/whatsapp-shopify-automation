@@ -624,23 +624,30 @@ function getTemplateStats(from, to) {
     templates[key].total += r.count;
   });
 
-  // Add conversion data per template (for abandoned_cart: check if the checkout linked to the message converted)
-  // ONLY count templates that were actually sent — a checkout converted before
-  // its rappel_2 / rappel_promo went out should NOT credit those templates.
-  // Use DISTINCT (template, checkout_id) so a same checkout/template pair
-  // (e.g. retry) is counted once.
+  // Add conversion data per template — LAST-TOUCH attribution.
+  // For each converted checkout, only the most recently SENT template before
+  // the conversion gets credit. This guarantees that the sum of revenues
+  // across templates equals the total recovered revenue (no double counting).
+  // A template never sent (status != 'sent') gets no credit, by design.
   const dfm = dateClause(from, to, 'm.created_at');
   const convRows = db.prepare(`
-    WITH unique_sent AS (
-      SELECT DISTINCT m.template, json_extract(m.metadata, '$.checkout_id') as cid
+    WITH last_sent AS (
+      SELECT
+        json_extract(m.metadata, '$.checkout_id') as cid,
+        m.template,
+        ROW_NUMBER() OVER (
+          PARTITION BY json_extract(m.metadata, '$.checkout_id')
+          ORDER BY datetime(m.sent_at) DESC
+        ) as rn
       FROM messages m
       WHERE m.flow = 'abandoned_cart' AND m.status = 'sent' ${dfm.sql}
     )
     SELECT u.template,
       COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted,
       COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
-    FROM unique_sent u
+    FROM last_sent u
     LEFT JOIN checkouts c ON c.id = u.cid
+    WHERE u.rn = 1
     GROUP BY u.template
   `).all(...dfm.params);
 

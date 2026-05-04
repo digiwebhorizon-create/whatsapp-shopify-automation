@@ -385,7 +385,7 @@ tr:hover td { background: #f8fafb; }
   <div class="card">
     <div class="card-header">
       <h2>&#128202; Performance par template</h2>
-      <span style="font-size:11px;color:var(--text-secondary)">KPIs détaillés par message et par flow</span>
+      <span style="font-size:11px;color:var(--text-secondary)">Attribution last-touch — chaque conversion est créditée au dernier template envoyé. La somme des CA par template = CA total récupéré.</span>
     </div>
     <div class="card-body" id="templateStats">
       <div style="color:var(--text-secondary);font-size:13px">Chargement...</div>
