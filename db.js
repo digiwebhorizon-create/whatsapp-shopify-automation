@@ -625,16 +625,23 @@ function getTemplateStats(from, to) {
   });
 
   // Add conversion data per template (for abandoned_cart: check if the checkout linked to the message converted)
-  // Note: checkout_id is stored inside the metadata JSON column, not as a real column.
-  // Using json_extract to read it cleanly.
+  // ONLY count templates that were actually sent — a checkout converted before
+  // its rappel_2 / rappel_promo went out should NOT credit those templates.
+  // Use DISTINCT (template, checkout_id) so a same checkout/template pair
+  // (e.g. retry) is counted once.
   const dfm = dateClause(from, to, 'm.created_at');
   const convRows = db.prepare(`
-    SELECT m.template, COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted,
+    WITH unique_sent AS (
+      SELECT DISTINCT m.template, json_extract(m.metadata, '$.checkout_id') as cid
+      FROM messages m
+      WHERE m.flow = 'abandoned_cart' AND m.status = 'sent' ${dfm.sql}
+    )
+    SELECT u.template,
+      COUNT(DISTINCT CASE WHEN c.converted = 1 THEN c.id END) as converted,
       COALESCE(SUM(CASE WHEN c.converted = 1 THEN CAST(c.total_price AS REAL) END), 0) as revenue
-    FROM messages m
-    LEFT JOIN checkouts c ON c.id = json_extract(m.metadata, '$.checkout_id')
-    WHERE m.flow = 'abandoned_cart' ${dfm.sql}
-    GROUP BY m.template
+    FROM unique_sent u
+    LEFT JOIN checkouts c ON c.id = u.cid
+    GROUP BY u.template
   `).all(...dfm.params);
 
   convRows.forEach(r => {
